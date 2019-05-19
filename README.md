@@ -1,0 +1,1 @@
+# elm-postgrest-generator

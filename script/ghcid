@@ -1,0 +1,3 @@
+#!/bin/bash
+
+ghcid -T main -c 'stack ghci' -C src

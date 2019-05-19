@@ -1,0 +1,4 @@
+.stack-work/
+elm-postgrest-generator.cabal
+*~
+.env

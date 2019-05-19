@@ -12,14 +12,14 @@ module Config
 where
 
 import           Elm                                      ( Expression
-                                                            ,Module( LocalModule)
-                                                            , unqualifiedReference
-                                                            ,import_
-                                                            , Import
+                                                          , Module(LocalModule)
+                                                          , unqualifiedReference
+                                                          , import_
+                                                          , Import
                                                           )
 import qualified TableDefinition               as T
 import           Data.Char                     as Char
-import Data.List (intercalate)
+import           Data.List                                ( intercalate )
 import           Data.Maybe                               ( fromMaybe )
 import           Text.Casing                              ( fromAny
                                                           , toCamel
@@ -39,7 +39,8 @@ moduleNamespace c =
   fromMaybe (tableModule . T.name . table $ c) (specifiedModuleNamespace c)
 
 tableTypeAlias :: TableConfig -> Expression
-tableTypeAlias config = unqualifiedReference (typesModuleImport config) $ tableTypeAliasName config
+tableTypeAlias config =
+  unqualifiedReference (typesModuleImport config) $ tableTypeAliasName config
 
 tableTypeAliasName :: TableConfig -> String
 tableTypeAliasName TableConfig { specifiedTypeAlias, table } =
@@ -59,6 +60,5 @@ capitalized (x : xs) = Char.toUpper x : xs
 capitalized []       = []
 
 typesModuleImport :: TableConfig -> Import
-typesModuleImport config = import_
-  (LocalModule $ (intercalate "." . typesModule) config)
-  Nothing
+typesModuleImport config =
+  import_ (LocalModule $ (intercalate "." . typesModule) config) Nothing

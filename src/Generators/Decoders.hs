@@ -24,12 +24,8 @@ generate config = ModuleFile ["Api", C.moduleNamespace config, "Decoders"]
   decodeSingular = exposedFunction
     (Call jsonDecodeDecoder [typeAlias])
     "decodeSingular"
-    [ Call
-        (unqualifiedReference jsonDecode "index")
-        [ E.Int_ 0
-        , Call (unqualifiedReference jsonDecode "list")
-               [LocalReference "decodeUnit"]
-        ]
+    [ Call (unqualifiedReference jsonDecode "index")
+           [E.Int_ 0, LocalReference "decodeUnit"]
     ]
 
   decodeUnit = exposedFunction

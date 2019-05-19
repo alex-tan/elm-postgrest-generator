@@ -7,6 +7,7 @@ module Elm
   , Import
   , ModuleFile(..)
   , Qualification(..)
+  , RecordDeclarationField(..)
   , Module(..)
   , exposeSome
   , import_
@@ -57,7 +58,8 @@ toString moduleFile =
 
 expressionToString :: Expression -> String
 expressionToString expr = case expr of
-  Int_ i -> show i
+  TypeVariable s -> s
+  Int_         i -> show i
   Call e es ->
     let firstString = expressionToString e
         call'       = unwords (firstString : map expressionToString es)
@@ -69,23 +71,62 @@ expressionToString expr = case expr of
     sig        = name ++ " : " ++ expressionToString type'
     assignment = name ++ " ="
   ExternalReference q i f -> importFunction q i f
-  LocalReference f        -> f
-  Parentheses es -> parenthesize . unwords . map expressionToString $ es
-  Str            s        -> "\"" ++ s ++ "\""
+  Lambda params expr' ->
+    parenthesize $ "\\" ++ unwords params ++ " -> " ++ expressionToString expr'
+  LocalReference f  -> f
+  Parentheses    es -> parenthesize . unwords . map expressionToString $ es
+  RecordDeclaration _ name fields ->
+    intercalate "\n"
+      . concat
+      $ [ [name ++ " :"]
+        , DI.imap recordDeclarationSignatureToString fields
+        , [indent 1 "}"]
+        , [name ++ " ="]
+        , DI.imap recordDeclarationFieldToString fields
+        , [indent 1 "}", blankLine]
+        ]
+   where
+    recordDeclarationSignatureToString
+      :: Int -> RecordDeclarationField -> String
+    recordDeclarationSignatureToString index rdf = indent
+      1
+      (unwords
+        [ opener
+        , rdfName rdf
+        , ":"
+        , intercalate " -> " . map expressionToString $rdfSignature rdf
+        ]
+      )
+      where opener = if index == 0 then "{" else ","
+    recordDeclarationFieldToString :: Int -> RecordDeclarationField -> String
+    recordDeclarationFieldToString index rdf = indent
+      1
+      (unwords [opener, rdfName rdf, "=", expressionToString $ rdfValue rdf])
+      where opener = if index == 0 then "{" else ","
+  Str s                   -> "\"" ++ s ++ "\""
   TypeAlias _ name fields -> intercalate
     "\n"
     (  ("type alias " ++ name ++ " =")
     :  DI.imap fieldToString fields
-    ++ [indent 1 "}"]
+    ++ [indent 1 "}", blankLine]
     )
-
    where
     fieldToString :: Int -> Expression -> String
     fieldToString index expr' = indent
       1
       (opener ++ " " ++ expressionToString expr')
       where opener = if index == 0 then "{" else ","
+  UpdateRecord recordVar fields ->
+    unwords
+      $  ["{", recordVar, "|"]
+      ++ map recordFieldUpdateToString fields
+      ++ ["}"]
+
   Field name exps -> unwords $ name : ":" : map expressionToString exps
+
+recordFieldUpdateToString :: (FieldName, Expression) -> [Char]
+recordFieldUpdateToString (name, expr) =
+  unwords [name, "=", expressionToString expr]
 
 isOperator :: String -> Bool
 isOperator (x : _) = not $ Char.isAlphaNum x
@@ -133,9 +174,11 @@ foldIE = foldl mergeIE
 
 importsAndExportsFromExpression :: Expression -> ImportsAndExports
 importsAndExportsFromExpression expression = case expression of
-  Int_ _ -> emptyIE
   Call exp' exps ->
     mergeIE (importsAndExportsFromExpression exp') (importsAndExports exps)
+  Field _ exps                  -> importsAndExports exps
+  Int_         _                -> emptyIE
+  TypeVariable _                -> emptyIE
   ExternalReference q import' f -> emptyIE
     { imports =
       Map.fromList
@@ -144,13 +187,16 @@ importsAndExportsFromExpression expression = case expression of
   FunctionDeclaration Public exp name exps ->
     foldIE (emptyIE { exports = Set.fromList [name] }) (mapExps $ exp : exps)
   FunctionDeclaration Private exp _ exps -> importsAndExports (exp : exps)
+  Lambda _ expr                          -> importsAndExports [expr]
   LocalReference _                       -> emptyIE
   Parentheses    exps                    -> importsAndExports exps
-  Str            _                       -> emptyIE
+  RecordDeclaration _ _ fields ->
+    importsAndExports . concatMap (\f -> rdfValue f : rdfSignature f) $ fields
+  Str _ -> emptyIE
   TypeAlias Public name exps ->
     foldIE (emptyIE { exports = Set.fromList [name] }) (mapExps exps)
   TypeAlias Private _ exps -> importsAndExports exps
-  Field _ exps             -> importsAndExports exps
+  UpdateRecord _ fields    -> importsAndExports . map snd $ fields
   where mapExps = map importsAndExportsFromExpression
 
 data Import
@@ -224,7 +270,10 @@ type FieldName = String
 type FunctionName = String
 type ModuleName = String
 type Package = String
+type RecordName = String
 type TypeAliasName = String
+type LambdaParameter = String
+type RecordVariable = String
 
 data Public
   = Public
@@ -241,7 +290,17 @@ data Expression
   | TypeAlias Public TypeAliasName [Expression]
   | Field FieldName [Expression]
   | Int_ Prelude.Int
+  | RecordDeclaration Public RecordName [RecordDeclarationField]
+  | TypeVariable String
+  | Lambda [LambdaParameter] Expression
+  | UpdateRecord RecordVariable [(FieldName, Expression)]
   deriving (Show)
+
+data RecordDeclarationField = RecordDeclarationField
+  { rdfName :: String
+  , rdfSignature :: [Expression]
+  , rdfValue :: Expression
+  } deriving (Show)
 
 exposedFunction :: Expression -> FunctionName -> [Expression] -> Expression
 exposedFunction = FunctionDeclaration Public

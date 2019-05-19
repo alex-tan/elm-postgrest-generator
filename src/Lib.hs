@@ -36,8 +36,8 @@ run = do
             putStrLn a
             putStrLn b
             putStrLn c
-            -- writeFile "output/Types.elm"    a
-            -- writeFile "output/Decoders.elm" b
-            -- writeFile "output/Api.elm"      b
+            writeFile "Types.elm"    a
+            writeFile "Decoders.elm" b
+            writeFile "Api.elm"      b
 
         Left _ -> return ()

@@ -15,25 +15,25 @@ generate config = ModuleFile ["Api", C.moduleNamespace config, "Decoders"]
   typeAlias    = C.tableTypeAlias config
 
   decodePlural = exposedFunction
-    (Call jsonDecodeDecoder [typeAlias])
+    (Call jsonDecodeDecoder [Call (LocalReference "List") [typeAlias]])
     "decodePlural"
-    [ Call (unqualifiedReference jsonDecode "list")
-           [LocalReference "decodeUnit"]
-    ]
+    (Call (unqualifiedReference jsonDecode "list") [LocalReference "decodeUnit"]
+    )
 
   decodeSingular = exposedFunction
     (Call jsonDecodeDecoder [typeAlias])
     "decodeSingular"
-    [ Call (unqualifiedReference jsonDecode "index")
-           [E.Int_ 0, LocalReference "decodeUnit"]
-    ]
+    (Call (unqualifiedReference jsonDecode "index")
+          [E.Int_ 0, LocalReference "decodeUnit"]
+    )
 
   decodeUnit = exposedFunction
     (Call jsonDecodeDecoder [typeAlias])
     "decodeUnit"
-    ( Call jsonDecodeSucceed [typeAlias]
-    : concatMap columnToDecoder (T.columns $ C.table config)
+    (pipeRightChain (Call jsonDecodeSucceed [typeAlias])
+                    (concatMap columnToDecoder (T.columns $ C.table config))
     )
+
 
 jsonDecodeDecoder :: Expression
 jsonDecodeDecoder = unqualifiedReference jsonDecode "Decoder"

@@ -16,6 +16,7 @@ module Elm
   , qualifiedReference
   , unqualifiedReference
   , exposedFunction
+  , pipeRightChain
   )
 where
 
@@ -56,6 +57,14 @@ toString moduleFile =
           , (map expressionToString . expressions) moduleFile
           ]
 
+pipeRightChain :: Expression -> [Expression] -> Expression
+pipeRightChain start parts = applyEach $ (start : parts)
+
+applyEach :: [Expression] -> Expression
+applyEach (x : []) = x
+applyEach (x : xs) = Call x [applyEach xs]
+applyEach []       = LocalReference ""
+
 expressionToString :: Expression -> String
 expressionToString expr = case expr of
   TypeVariable s -> s
@@ -63,10 +72,12 @@ expressionToString expr = case expr of
   Call e es ->
     let firstString = expressionToString e
         call'       = unwords (firstString : map expressionToString es)
-    in  if isOperator firstString then call' else parenthesize call'
-  FunctionDeclaration _ type' name exps -> intercalate
+    in  if isOperator firstString
+          then "\n" ++ indent 1 call'
+          else parenthesize call'
+  FunctionDeclaration _ type' name exp -> intercalate
     "\n"
-    (sig : assignment : map (indent 1 . expressionToString) exps ++ [blankLine])
+    (sig : assignment : (indent 1 . expressionToString) exp : [blankLine])
    where
     sig        = name ++ " : " ++ expressionToString type'
     assignment = name ++ " ="
@@ -157,6 +168,9 @@ data ImportsAndExports = ImportsAndExports
   , exports :: Set.Set String
   }
 
+addExport :: String -> ImportsAndExports -> ImportsAndExports
+addExport s i = i { exports = Set.insert s (exports i) }
+
 emptyIE :: ImportsAndExports
 emptyIE = ImportsAndExports { imports = Map.empty, exports = Set.empty }
 
@@ -184,13 +198,18 @@ importsAndExportsFromExpression expression = case expression of
       Map.fromList
         [(moduleName . module_ $ import', setQualification q f import')]
     }
-  FunctionDeclaration Public exp name exps ->
-    foldIE (emptyIE { exports = Set.fromList [name] }) (mapExps $ exp : exps)
-  FunctionDeclaration Private exp _ exps -> importsAndExports (exp : exps)
+  FunctionDeclaration Public exp name exp' ->
+    foldIE (emptyIE { exports = Set.fromList [name] }) (mapExps [exp, exp'])
+  FunctionDeclaration Private exp _ exp' -> importsAndExports [exp, exp']
   Lambda _ expr                          -> importsAndExports [expr]
   LocalReference _                       -> emptyIE
   Parentheses    exps                    -> importsAndExports exps
-  RecordDeclaration _ _ fields ->
+  RecordDeclaration Public r fields ->
+    addExport r
+      . importsAndExports
+      . concatMap (\f -> rdfValue f : rdfSignature f)
+      $ fields
+  RecordDeclaration Private _ fields ->
     importsAndExports . concatMap (\f -> rdfValue f : rdfSignature f) $ fields
   Str _ -> emptyIE
   TypeAlias Public name exps ->
@@ -283,7 +302,7 @@ data Public
 data Expression
   = Call Expression [Expression]
   | ExternalReference Qualification Import FunctionName
-  | FunctionDeclaration Public Expression FunctionName [Expression]
+  | FunctionDeclaration Public Expression FunctionName Expression
   | LocalReference FunctionName
   | Parentheses [Expression]
   | Str String
@@ -302,7 +321,7 @@ data RecordDeclarationField = RecordDeclarationField
   , rdfValue :: Expression
   } deriving (Show)
 
-exposedFunction :: Expression -> FunctionName -> [Expression] -> Expression
+exposedFunction :: Expression -> FunctionName -> Expression -> Expression
 exposedFunction = FunctionDeclaration Public
 
 qualifiedReference :: Import -> FunctionName -> Expression

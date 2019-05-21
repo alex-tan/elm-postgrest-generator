@@ -5,7 +5,6 @@ module Lib
     )
 where
 
-import           Prelude
 import qualified Hasql.Session                 as Session
 import qualified Hasql.Connection              as Connection
 import           TableDefinition                          ( tableSession )
@@ -19,18 +18,43 @@ import           Config
 import           System.Environment                       ( getEnv )
 import qualified Data.ByteString.Char8         as B
 import           Text.Pretty.Simple
+import           Options.Applicative
+import           Data.Semigroup                           ( (<>) )
+import           Control.Monad                            ( join )
+
+data Cmdline = Cmdline
+  { hello      :: String
+  , quiet      :: Bool
+  , enthusiasm :: Int
+  }
 
 run :: IO ()
-run = do
+run =
+    join $ customExecParser (prefs showHelpOnEmpty) (info opts idm)
+
+generate :: IO ()
+generate = do
     dbURL      <- getEnv "DATABASE_URL"
     connection <- Connection.acquire (B.pack dbURL)
     case connection of
         Right connection' -> do
-
             let runner = runTable connection'
             runner "words"
             Connection.release connection'
         Left _ -> putStrLn "Couldn't establish connection to DB"
+
+initConfig = return ()
+
+opts :: Parser (IO ())
+opts = subparser
+    (  command
+            "init"
+            (info
+                (pure initConfig)
+                (progDesc "initialize the config file to run this program")
+            )
+    <> command "generate" (info (pure generate) (progDesc "generate elm files based on the config"))
+    )
 
 generators :: [TableConfig -> Elm.ModuleFile]
 generators =
@@ -58,7 +82,5 @@ runGenerator config generator = do
     let raw    = generator config
     let result = toString raw
     case result of
-        Just r ->
-            putStrLn r
+        Just r  -> putStrLn r
         Nothing -> putStrLn "Error"
-        -- pPrint raw

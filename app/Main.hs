@@ -1,7 +1,5 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 import qualified Lib
 
 main :: IO ()
-main = do
+main =
   Lib.run

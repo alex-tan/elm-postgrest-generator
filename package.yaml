@@ -60,7 +60,7 @@ library:
   - text
 
 executables:
-  elm-postgrest-generator-exe:
+  elm-generate:
     main:                Main.hs
     source-dirs:         app
     ghc-options:

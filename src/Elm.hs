@@ -87,7 +87,7 @@ expressionToString iL expr =
     toStringAtCurrentIndent = expressionToString iL
 
     nextIndentLevel         = iL + 1
-                                                                                                    -- nextIndent = expressionToString (iL + 1)
+                                                                                                      -- nextIndent = expressionToString (iL + 1)
   in
     case expr of
       TypeVariable s -> s
@@ -103,14 +103,13 @@ expressionToString iL expr =
           $ (sig : assignment : toStringAtCurrentIndent exp : [blankLine])
        where
         sig = unwords
-          ([ name
-           , ":"
-           , (intercalate " -> ")
-             $ (  map (expressionToString 0 . snd) args
-               ++ [expressionToString 0 returnType]
-               )
-           ]
-          )
+          [ name
+          , ":"
+          , (intercalate " -> ")
+            $ (  map (expressionToString 0 . snd) args
+              ++ [expressionToString 0 returnType]
+              )
+          ]
         assignment = (unwords . (:) name . map fst) args ++ " ="
       ExternalReference q i f -> importFunction q i f
       Lambda params expr' ->

@@ -19,10 +19,8 @@ generate config = ModuleFile ["Api", C.moduleNamespace config, "Decoders"]
   decodePlural = exposedFunction
     "decodePlural"
     []
-    (Call (LocalReference "List") [typeAlias])
-    ((Call jsonDecodeDecoder)
-      [Call (unqualifiedReference jsonDecode "list") [decodeUnitReference]]
-    )
+    (Call jsonDecodeDecoder [Call (LocalReference "List") [typeAlias]])
+    (Call (unqualifiedReference jsonDecode "list") [decodeUnitReference])
 
   decodeSingular = exposedFunction
     "decodeSingular"

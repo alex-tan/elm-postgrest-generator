@@ -8,38 +8,37 @@ where
 import qualified Config                        as C
 import           Prelude                           hiding ( maybe )
 import qualified TableDefinition               as T
-import           Elm                           as E
+import           Elm
 
 generate :: C.TableConfig -> ModuleFile
 generate config = ModuleFile ["Api", C.moduleNamespace config, "Decoders"]
                              [decodePlural, decodeSingular, decodeUnit]
  where
-  typeAlias    = C.tableTypeAlias config
+  typeAlias'   = C.tableTypeAlias config
 
   decodePlural = exposedFunction
     "decodePlural"
     []
-    (Call jsonDecodeDecoder [Call (LocalReference "List") [typeAlias]])
-    (Call (unqualifiedReference jsonDecode "list") [decodeUnitReference])
+    (call jsonDecodeDecoder [call (local "List") [typeAlias']])
+    (call (unqualifiedReference jsonDecode "list") [decodeUnitReference])
 
   decodeSingular = exposedFunction
     "decodeSingular"
     []
-    (Call jsonDecodeDecoder [typeAlias])
-    (Call (unqualifiedReference jsonDecode "index")
-          [E.Int_ 0, decodeUnitReference]
+    (call jsonDecodeDecoder [typeAlias'])
+    (call (unqualifiedReference jsonDecode "index") [int 0, decodeUnitReference]
     )
 
   decodeUnit = exposedFunction
     "decodeUnit"
     []
-    (Call jsonDecodeDecoder [typeAlias])
-    (pipeRightChain (Call jsonDecodeSucceed [typeAlias])
+    (call jsonDecodeDecoder [typeAlias'])
+    (pipeRightChain (call jsonDecodeSucceed [typeAlias'])
                     (concatMap columnToDecoder (T.columns $ C.table config))
     )
 
 decodeUnitReference :: Expression
-decodeUnitReference = LocalReference "decodeUnit"
+decodeUnitReference = local "decodeUnit"
 
 jsonDecodeDecoder :: Expression
 jsonDecodeDecoder = unqualifiedReference jsonDecode "Decoder"
@@ -50,11 +49,11 @@ jsonDecodeSucceed = unqualifiedReference jsonDecode "succeed"
 columnToDecoder :: T.Column -> [Expression]
 columnToDecoder col =
   let decoder = elmDataTypeToDecoder $ T.dataType col
-  in  [ Call
-          (LocalReference "|>")
+  in  [ call
+          (local "|>")
           [ unqualifiedReference jsonDecodePipeline "required"
-          , Str $ T.columnName col
-          , if T.isNullable col then decoder else Call maybe [decoder]
+          , string $ T.columnName col
+          , if T.isNullable col then decoder else call maybe [decoder]
           ]
       ]
 
@@ -66,9 +65,9 @@ elmDataTypeToDecoder T.String      = unqualifiedReference jsonDecode "string"
 elmDataTypeToDecoder T.Int         = unqualifiedReference jsonDecode "int"
 elmDataTypeToDecoder T.Float       = unqualifiedReference jsonDecode "float"
 elmDataTypeToDecoder T.Bool        = unqualifiedReference jsonDecode "bool"
-elmDataTypeToDecoder (T.Unknown _) = LocalReference "unknownDecode"
+elmDataTypeToDecoder (T.Unknown _) = local "unknownDecode"
 elmDataTypeToDecoder T.Posix = unqualifiedReference jsonDecodeExtra "datetime"
-elmDataTypeToDecoder T.Date        = LocalReference "unknownDateDecoder"
+elmDataTypeToDecoder T.Date        = local "unknownDateDecoder"
 
 jsonDecodePipeline :: Import
 jsonDecodePipeline = import_

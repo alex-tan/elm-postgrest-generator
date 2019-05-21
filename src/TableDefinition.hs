@@ -58,7 +58,7 @@ elmDataTypeToExpression :: ElmDataType -> Expression
 elmDataTypeToExpression e = case e of
     Posix -> unqualifiedReference elmTime "Posix"
     Date  -> unqualifiedReference elmDate "Date"
-    any'  -> LocalReference $ elmDataTypeToString any'
+    any'  -> local $ elmDataTypeToString any'
 
 elmTime :: Import
 elmTime = import_ (ExternalModule "elm/time" "Time") Nothing

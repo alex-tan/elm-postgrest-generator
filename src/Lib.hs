@@ -58,7 +58,7 @@ runGenerator config generator = do
     let raw    = generator config
     let result = toString raw
     case result of
-        Just r -> do
+        Just r ->
             putStrLn r
         Nothing -> putStrLn "Error"
         -- pPrint raw

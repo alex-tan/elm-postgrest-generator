@@ -8,51 +8,44 @@ import           Elm
 import qualified Config                        as C
 
 generate :: C.TableConfig -> ModuleFile
-generate config = ModuleFile (C.typesModule config) [typeAlias, accessorMap]
+generate config = ModuleFile (C.typesModule config) [typeAlias', accessorMap]
  where
   typeAliasName = C.tableTypeAliasName config
 
-  typeAlias :: Expression
-  typeAlias =
-    TypeAlias Public typeAliasName
-      . map columnToField
-      . T.columns
-      . C.table
-      $ config
+  typeAlias' :: Expression
+  typeAlias' = exposedTypeAlias
+    typeAliasName
+    (map columnToField . T.columns . C.table $ config)
 
   accessorMap :: Expression
-  accessorMap = RecordDeclaration
-    Public
+  accessorMap = exposedRecordDeclaration
     "map"
     (map columnToMapField . T.columns . C.table $ config)
 
   columnToField :: T.Column -> Expression
-  columnToField col = Field fieldName [fieldType_]
+  columnToField col = field fieldName [fieldType_]
    where
     fieldName  = C.columnFieldName $ T.columnName col
     fieldType_ = T.elmDataTypeToExpression . T.dataType $ col
 
-  r = TypeVariable "r"
-  w = TypeVariable "w"
+  r = typeVariable "r"
+  w = typeVariable "w"
 
   columnToMapField :: T.Column -> RecordDeclarationField
   columnToMapField col = RecordDeclarationField
     { rdfName      = C.columnFieldName $ T.columnName col
-    , rdfSignature = [ Call relation [fieldType_, r, w]
-                     , Call relation [LocalReference typeAliasName, r, w]
+    , rdfSignature = [ call relation [fieldType_, r, w]
+                     , call relation [local typeAliasName, r, w]
                      ]
     , rdfValue     =
-      Call
+      call
         makeOneToOne
-        [ LocalReference $ "." ++ fieldName
-        , Lambda
+        [ local $ "." ++ fieldName
+        , lambda
           ["r", "f"]
-          (UpdateRecord
+          (updateRecord
             "r"
-            [ ( fieldName
-              , Call (LocalReference "f") [LocalReference $ "r." ++ fieldName]
-              )
-            ]
+            [(fieldName, call (local "f") [local $ "r." ++ fieldName])]
           )
         ]
     }

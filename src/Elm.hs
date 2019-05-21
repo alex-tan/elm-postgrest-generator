@@ -2,21 +2,30 @@
 {-# OPTIONS_GHC -Wall #-}
 
 module Elm
-  ( Expression(..)
+  ( Expression
   , Exposure(..)
-  , Public(..)
   , Import
-  , ModuleFile(..)
-  , Qualification(..)
+  , ModuleFile(ModuleFile)
   , RecordDeclarationField(..)
   , Module(..)
+  , string
+  , local
+  , int
   , exposeSome
+  , exposedFunction
+  , exposedTypeAlias
+  , exposedRecordDeclaration
   , import_
   , importAs
+  , record
+  , lambda
+  , typeVariable
+  , call
+  , updateRecord
+  , field
   , toString
   , qualifiedReference
   , unqualifiedReference
-  , exposedFunction
   , pipeRightChain
   )
 where
@@ -31,7 +40,6 @@ import           Data.List                                ( intercalate
 import qualified Data.List.Index               as DI
 import           Data.Maybe                               ( catMaybes )
 import qualified Data.Set                      as Set
-import           Generation
 import           Data.Char                     as Char
 import qualified Reporting.Result              as RR
 import qualified ElmFormat.Render.Text         as Render
@@ -77,7 +85,7 @@ pipeRightChain start parts = applyEach . intersperse LineEnd $ (start : parts)
 applyEach :: [Expression] -> Expression
 applyEach (x : []) = x
 applyEach (x : xs) = Call x [applyEach xs]
-applyEach []       = LocalReference ""
+applyEach []       = local ""
 
 type IndentLevel = Int
 
@@ -87,7 +95,7 @@ expressionToString iL expr =
     toStringAtCurrentIndent = expressionToString iL
 
     nextIndentLevel         = iL + 1
-                                                                                                      -- nextIndent = expressionToString (iL + 1)
+                                                                                                                                                                            -- nextIndent = expressionToString (iL + 1)
   in
     case expr of
       TypeVariable s -> s
@@ -114,16 +122,13 @@ expressionToString iL expr =
       ExternalReference q i f -> importFunction q i f
       Lambda params expr' ->
         parenthesize
-          $  "\\"
-          ++ unwords params
-          ++ " -> "
-          ++ toStringAtCurrentIndent expr'
+          . unwords
+          $ ["\\" ++ unwords params, "->", toStringAtCurrentIndent expr']
       LineEnd          -> "\n"
       LocalReference f -> f
       Parentheses es ->
         parenthesize . unwords . map toStringAtCurrentIndent $ es
-      Record fields ->
-        intercalate "\n" $ (DI.imap fieldToString fields) ++ ["}"]
+      Record fields -> intercalate "\n" $ DI.imap fieldToString fields ++ ["}"]
       RecordDeclaration _ name fields ->
         intercalate ""
           . intersperse "\n"
@@ -368,6 +373,39 @@ data Expression
   | UpdateRecord RecordVariable [(FieldName, Expression)]
   deriving (Show)
 
+string :: String -> Expression
+string = Str
+
+int :: Int -> Expression
+int = Int_
+
+local :: FunctionName -> Expression
+local = LocalReference
+
+typeVariable :: String -> Expression
+typeVariable = TypeVariable
+
+record :: [RecordField] -> Expression
+record = Record
+
+exposedRecordDeclaration :: RecordName -> [RecordDeclarationField] -> Expression
+exposedRecordDeclaration = RecordDeclaration Public
+
+lambda :: [LambdaParameter] -> Expression -> Expression
+lambda = Lambda
+
+call :: Expression -> [Expression] -> Expression
+call = Call
+
+updateRecord :: RecordVariable -> [(FieldName, Expression)] -> Expression
+updateRecord = UpdateRecord
+
+exposedTypeAlias :: TypeAliasName -> [Expression] -> Expression
+exposedTypeAlias = TypeAlias Public
+
+field :: FieldName -> [Expression] -> Expression
+field = Field
+
 data RecordDeclarationField = RecordDeclarationField
   { rdfName :: String
   , rdfSignature :: [Expression]
@@ -403,3 +441,9 @@ data Qualification
   = Qualified
   | Unqualified
   deriving (Show)
+
+indent :: Int -> String -> String
+indent n s = replicate (n * 4) ' ' ++ s
+
+blankLine :: String
+blankLine = ""

@@ -13,40 +13,37 @@ generate config = ModuleFile
         "getPlural"
         [("params", unqualifiedReference postgrestImport "Params")]
 
-        (Call (unqualifiedReference postgrestImport "Request")
-              [postgrest "Params", Call (LocalReference "List") [typeAlias]]
+        (call (unqualifiedReference postgrestImport "Request")
+              [call (local "List") [typeAlias]]
         )
-        (Call
+        (call
             (unqualifiedReference postgrestImport "get")
-            [ Str $ C.tableName config
-            , Record
+            [ string $ C.tableName config
+            , record
                 [ ( "params"
-                  , Call
+                  , call
                       (unqualifiedReference postgrestImport "combineParams")
-                      [LocalReference "defaultParams", LocalReference "params"]
+                      [local "defaultParams", local "params"]
                   )
                 , ("decoder", unqualifiedReference decoders "decodePlural")
                 ]
             ]
         )
     , exposedFunction "post" [("submission", typeAlias)] (request typeAlias)
-        $ Call
+        $ call
               (unqualifiedReference postgrestImport "post")
-              [ Str $ C.tableName config
-              , Record
+              [ string $ C.tableName config
+              , record
                   [ ( "body"
-                    , Call
-                        (unqualifiedReference encoders "encode")
-                        [ LocalReference "defaultParams"
-                        , LocalReference "params"
-                        ]
+                    , call (unqualifiedReference encoders "encode")
+                           [local "submission"]
                     )
                   , ("decoder", unqualifiedReference decoders "decodeSingular")
                   ]
               ]
     ]
   where
-    request a = Call (unqualifiedReference postgrestImport "Request") [a]
+    request a = call (unqualifiedReference postgrestImport "Request") [a]
 
     typeAlias = C.tableTypeAlias config
 

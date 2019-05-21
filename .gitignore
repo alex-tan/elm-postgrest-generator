@@ -2,3 +2,4 @@
 elm-postgrest-generator.cabal
 *~
 .env
+output/*

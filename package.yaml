@@ -28,7 +28,6 @@ library:
   - bytestring
   - casing
   - containers
-  # - countable-inflections
   - hasql
   - ilist
   - optparse-applicative

@@ -29,7 +29,7 @@ data TableConfig = TableConfig
     { specifiedTypeAlias :: Maybe String
     , specifiedModuleNamespace :: Maybe String
     , table :: T.Table
-    }
+    } deriving (Show)
 
 typesModule :: TableConfig -> [String]
 typesModule config = ["Api", moduleNamespace config, "Types"]

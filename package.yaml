@@ -23,7 +23,11 @@ dependencies:
 - base >= 4.7 && < 5
 
 library:
-  source-dirs: src
+  source-dirs:
+  - src
+  - elm-format/src
+  - elm-format/parser/src
+  - elm-format/markdown
   dependencies:
   - bytestring
   - casing
@@ -34,6 +38,26 @@ library:
   - pretty-simple
   - safe
   - text
+  # elm-format
+  - aeson
+  - ansi-terminal
+  - ansi-wl-pprint
+  - base
+  - binary
+  - bytestring
+  - containers
+  - directory
+  - edit-distance
+  - filepath
+  - free
+  - indents
+  - json
+  - mtl
+  - optparse-applicative
+  - parsec
+  - process
+  - split
+  - text
 
 executables:
   elm-postgrest-generator-exe:
@@ -43,7 +67,6 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
-    - -Wall
     dependencies:
     - elm-postgrest-generator
 

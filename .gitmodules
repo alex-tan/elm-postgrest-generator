@@ -1,0 +1,3 @@
+[submodule "elm-format"]
+	path = elm-format
+	url = git@github.com:avh4/elm-format.git

@@ -6,8 +6,11 @@ module Config
   , tableTypeAliasName
   , tableModule
   , columnFieldName
+  , decodersModuleReference
   , moduleNamespace
   , typesModule
+  , encodersModuleReference
+  , tableName
   )
 where
 
@@ -31,8 +34,18 @@ data TableConfig = TableConfig
     , table :: T.Table
     } deriving (Show)
 
+tableName = T.name . table
+
 typesModule :: TableConfig -> [String]
 typesModule config = ["Api", moduleNamespace config, "Types"]
+
+decodersModuleReference :: TableConfig -> Module
+decodersModuleReference config =
+  LocalModule $ intercalate "." ["Api", moduleNamespace config, "Decoders"]
+
+encodersModuleReference :: TableConfig -> Module
+encodersModuleReference config =
+  LocalModule $ intercalate "." ["Api", moduleNamespace config, "Encoders"]
 
 moduleNamespace :: TableConfig -> String
 moduleNamespace c =

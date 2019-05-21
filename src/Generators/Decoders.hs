@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wall #-}
+
 module Generators.Decoders
   ( generate
   )
@@ -15,25 +17,31 @@ generate config = ModuleFile ["Api", C.moduleNamespace config, "Decoders"]
   typeAlias    = C.tableTypeAlias config
 
   decodePlural = exposedFunction
-    (Call jsonDecodeDecoder [Call (LocalReference "List") [typeAlias]])
     "decodePlural"
-    (Call (unqualifiedReference jsonDecode "list") [LocalReference "decodeUnit"]
+    []
+    (Call (LocalReference "List") [typeAlias])
+    ((Call jsonDecodeDecoder)
+      [Call (unqualifiedReference jsonDecode "list") [decodeUnitReference]]
     )
 
   decodeSingular = exposedFunction
-    (Call jsonDecodeDecoder [typeAlias])
     "decodeSingular"
+    []
+    (Call jsonDecodeDecoder [typeAlias])
     (Call (unqualifiedReference jsonDecode "index")
-          [E.Int_ 0, LocalReference "decodeUnit"]
+          [E.Int_ 0, decodeUnitReference]
     )
 
   decodeUnit = exposedFunction
-    (Call jsonDecodeDecoder [typeAlias])
     "decodeUnit"
+    []
+    (Call jsonDecodeDecoder [typeAlias])
     (pipeRightChain (Call jsonDecodeSucceed [typeAlias])
                     (concatMap columnToDecoder (T.columns $ C.table config))
     )
 
+decodeUnitReference :: Expression
+decodeUnitReference = LocalReference "decodeUnit"
 
 jsonDecodeDecoder :: Expression
 jsonDecodeDecoder = unqualifiedReference jsonDecode "Decoder"

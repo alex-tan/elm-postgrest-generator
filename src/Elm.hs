@@ -33,9 +33,9 @@ import           Data.Maybe                               ( catMaybes )
 import qualified Data.Set                      as Set
 import           Generation
 import           Data.Char                     as Char
-import qualified Reporting.Result as RR
-import qualified ElmFormat.Render.Text as Render
-import ElmVersion
+import qualified Reporting.Result              as RR
+import qualified ElmFormat.Render.Text         as Render
+import           ElmVersion
 
 data ModuleFile = ModuleFile
   { moduleNameParts :: [String]
@@ -58,15 +58,18 @@ toString moduleFile =
         $ importsAndExports_
         ]
       contents =
-        intercalate "\n"
-        . intercalate [blankLine]
-        . filter (not . null)
-        $ [ [moduleLine]
-          , map importLine $ Map.elems $ imports importsAndExports_
-          , (map (expressionToString 0) . expressions) moduleFile
-          ]
-  in
-    fmap (Text.unpack . Render.render Elm_0_19) . RR.toMaybe . Parse.parse . Text.pack $ contents
+          intercalate "\n"
+            . intercalate [blankLine]
+            . filter (not . null)
+            $ [ [moduleLine]
+              , map importLine $ Map.elems $ imports importsAndExports_
+              , (map (expressionToString 0) . expressions) moduleFile
+              ]
+  in  fmap (Text.unpack . Render.render Elm_0_19)
+        . RR.toMaybe
+        . Parse.parse
+        . Text.pack
+        $ contents
 
 pipeRightChain :: Expression -> [Expression] -> Expression
 pipeRightChain start parts = applyEach . intersperse LineEnd $ (start : parts)
@@ -84,7 +87,7 @@ expressionToString iL expr =
     toStringAtCurrentIndent = expressionToString iL
 
     nextIndentLevel         = iL + 1
-                          -- nextIndent = expressionToString (iL + 1)
+                                                                                                    -- nextIndent = expressionToString (iL + 1)
   in
     case expr of
       TypeVariable s -> s
@@ -95,12 +98,20 @@ expressionToString iL expr =
         in  if isOperator firstString
               then indent iL call'
               else parenthesize call'
-      FunctionDeclaration _ type' name exp -> intercalate
-        "\n"
-        (sig : assignment : toStringAtCurrentIndent exp : [blankLine])
+      FunctionDeclaration _ name args returnType exp ->
+        intercalate "\n"
+          $ (sig : assignment : toStringAtCurrentIndent exp : [blankLine])
        where
-        sig        = name ++ " : " ++ toStringAtCurrentIndent type'
-        assignment = name ++ " ="
+        sig = unwords
+          ([ name
+           , ":"
+           , (intercalate " -> ")
+             $ (  map (expressionToString 0 . snd) args
+               ++ [expressionToString 0 returnType]
+               )
+           ]
+          )
+        assignment = (unwords . (:) name . map fst) args ++ " ="
       ExternalReference q i f -> importFunction q i f
       Lambda params expr' ->
         parenthesize
@@ -112,8 +123,8 @@ expressionToString iL expr =
       LocalReference f -> f
       Parentheses es ->
         parenthesize . unwords . map toStringAtCurrentIndent $ es
-      Record _ -> 
-        "TODO"
+      Record fields ->
+        intercalate "\n" $ (DI.imap fieldToString fields) ++ ["}"]
       RecordDeclaration _ name fields ->
         intercalate ""
           . intersperse "\n"
@@ -131,35 +142,36 @@ expressionToString iL expr =
         recordDeclarationSignatureToString index rdf = indent
           1
           (unwords
-            [ opener
+            [ recordOpener index
             , rdfName rdf
             , ":"
             , intercalate " -> "
               . map toStringAtCurrentIndent $rdfSignature rdf
             ]
           )
-          where opener = if index == 0 then "{" else ","
         recordDeclarationFieldToString
           :: Int -> RecordDeclarationField -> String
         recordDeclarationFieldToString index rdf = indent
           1
           (unwords
-            [opener, rdfName rdf, "=", toStringAtCurrentIndent $ rdfValue rdf]
+            [ recordOpener index
+            , rdfName rdf
+            , "="
+            , toStringAtCurrentIndent $ rdfValue rdf
+            ]
           )
-          where opener = if index == 0 then "{" else ","
       Str s                   -> "\"" ++ s ++ "\""
       TypeAlias _ name fields -> intercalate
         "\n"
         (  ("type alias " ++ name ++ " =")
-        :  DI.imap fieldToString fields
+        :  DI.imap typeAliasFieldToString fields
         ++ [indent 1 "}", blankLine]
         )
        where
-        fieldToString :: Int -> Expression -> String
-        fieldToString index expr' = indent
+        typeAliasFieldToString :: Int -> Expression -> String
+        typeAliasFieldToString index expr' = indent
           nextIndentLevel
-          (opener ++ " " ++ toStringAtCurrentIndent expr')
-          where opener = if index == 0 then "{" else ","
+          (recordOpener index ++ " " ++ toStringAtCurrentIndent expr')
       UpdateRecord recordVar fields ->
         unwords
           $  ["{", recordVar, "|"]
@@ -232,15 +244,16 @@ importsAndExportsFromExpression expression = case expression of
       Map.fromList
         [(moduleName . module_ $ import', setQualification q f import')]
     }
-  FunctionDeclaration Public exp name exp' ->
-    foldIE (emptyIE { exports = Set.fromList [name] }) (mapExps [exp, exp'])
-  FunctionDeclaration Private exp _ exp' -> importsAndExports [exp, exp']
-  Lambda _ expr       -> importsAndExports [expr]
-  LineEnd             -> emptyIE
-  LocalReference _    -> emptyIE
-  Parentheses    exps -> importsAndExports exps
-  Record fields ->
-    importsAndExports . map snd $ fields
+  FunctionDeclaration Public name args return' exp' -> foldIE
+    (emptyIE { exports = Set.fromList [name] })
+    (mapExps $ return' : exp' : map snd args)
+  FunctionDeclaration Private _ args return' exp' ->
+    importsAndExports (return' : exp' : map snd args)
+  Lambda _ expr         -> importsAndExports [expr]
+  LineEnd               -> emptyIE
+  LocalReference _      -> emptyIE
+  Parentheses    exps   -> importsAndExports exps
+  Record         fields -> importsAndExports . map snd $ fields
   RecordDeclaration Public r fields ->
     addExport r
       . importsAndExports
@@ -336,11 +349,13 @@ data Public
   | Private
   deriving (Show)
 
+type ReturnType = Expression
+
 data Expression
   = Call Expression [Expression]
   | ExternalReference Qualification Import FunctionName
   | Field FieldName [Expression]
-  | FunctionDeclaration Public Expression FunctionName Expression
+  | FunctionDeclaration Public FunctionName [FunctionParameter] ReturnType Expression
   | Int_ Prelude.Int
   | Lambda [LambdaParameter] Expression
   | LineEnd
@@ -361,8 +376,22 @@ data RecordDeclarationField = RecordDeclarationField
   } deriving (Show)
 
 type RecordField = (String, Expression)
+type FunctionParameter = (String, Expression)
 
-exposedFunction :: Expression -> FunctionName -> Expression -> Expression
+recordOpener :: Int -> String
+recordOpener 0 = "{"
+recordOpener _ = ","
+
+fieldToString :: Int -> RecordField -> String
+fieldToString index (k, v) =
+  indent 1 . unwords $ [recordOpener index, k, "=", expressionToString 0 v]
+
+exposedFunction
+  :: FunctionName
+  -> [FunctionParameter]
+  -> ReturnType
+  -> Expression
+  -> Expression
 exposedFunction = FunctionDeclaration Public
 
 qualifiedReference :: Import -> FunctionName -> Expression

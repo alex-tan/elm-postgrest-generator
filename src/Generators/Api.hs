@@ -4,30 +4,60 @@ module Generators.Api
 where
 
 import qualified Config                        as C
-import           Prelude                           hiding ( maybe )
 import           Elm
 
 generate :: C.TableConfig -> ModuleFile
-generate config =
-    let typeAlias = C.tableTypeAlias config
-        sig       = Call (unqualifiedReference postgrestImport "Request")
-                         [Call (LocalReference "List") [typeAlias]]
-    in  
-        -- typeAlias    = C.tableTypeAlias config
-    
-        ModuleFile ["Api", C.moduleNamespace config]
-                   [ exposedFunction sig "getPlural" 
-                   $ Call ( unqualifiedReference postgrestImport "get" ) [
-                       Record 
-                           [ ("params", LocalReference "params")
-                           , ("decoder", LocalReference "decoder")
-                           ]
-                   ]
-                   ]
-    -- AP.get "commit_idf_uploads"
-    --     { params = params
-    --     , decoder = decodePlural
-    --     }
+generate config = ModuleFile
+    ["Api", C.moduleNamespace config]
+    [ exposedFunction
+        "getPlural"
+        [("params", unqualifiedReference postgrestImport "Params")]
+
+        (Call (unqualifiedReference postgrestImport "Request")
+              [postgrest "Params", Call (LocalReference "List") [typeAlias]]
+        )
+        (Call
+            (unqualifiedReference postgrestImport "get")
+            [ Str $ C.tableName config
+            , Record
+                [ ( "params"
+                  , Call
+                      (unqualifiedReference postgrestImport "combineParams")
+                      [LocalReference "defaultParams", LocalReference "params"]
+                  )
+                , ("decoder", unqualifiedReference decoders "decodePlural")
+                ]
+            ]
+        )
+    , exposedFunction "post" [("submission", typeAlias)] (request typeAlias)
+        $ Call
+              (unqualifiedReference postgrestImport "post")
+              [ Str $ C.tableName config
+              , Record
+                  [ ( "body"
+                    , Call
+                        (unqualifiedReference encoders "encode")
+                        [ LocalReference "defaultParams"
+                        , LocalReference "params"
+                        ]
+                    )
+                  , ("decoder", unqualifiedReference decoders "decodeSingular")
+                  ]
+              ]
+    ]
+  where
+    request a = Call (unqualifiedReference postgrestImport "Request") [a]
+
+    typeAlias = C.tableTypeAlias config
+
+    decoders :: Import
+    decoders = import_ (C.decodersModuleReference config) Nothing
+
+    encoders :: Import
+    encoders = import_ (C.encodersModuleReference config) Nothing
+
+postgrest = unqualifiedReference postgrestImport
 
 postgrestImport :: Import
 postgrestImport = import_ (LocalModule "Api.Postgrest") Nothing
+

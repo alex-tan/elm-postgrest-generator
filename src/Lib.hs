@@ -12,10 +12,13 @@ import           TableDefinition                          ( tableSession )
 import qualified Generators.Api
 import qualified Generators.Types
 import qualified Generators.Decoders
-import           Elm                                      ( toString, ModuleFile )
+import           Elm                                      ( toString
+                                                          , ModuleFile
+                                                          )
 import           Config
 import           System.Environment                       ( getEnv )
 import qualified Data.ByteString.Char8         as B
+import           Text.Pretty.Simple
 
 run :: IO ()
 run = do
@@ -30,33 +33,32 @@ run = do
         Left _ -> putStrLn "Couldn't establish connection to DB"
 
 generators :: [TableConfig -> Elm.ModuleFile]
-generators = 
+generators =
     [ Generators.Types.generate
     , Generators.Decoders.generate
     , Generators.Api.generate
     ]
 
-runTable :: Connection.Connection -> String -> IO()
+runTable :: Connection.Connection -> String -> IO ()
 runTable conn tableName = do
     table' <- Session.run (tableSession tableName) conn
 
     case table' of
         Right table'' ->
-            let config = TableConfig
-                    { specifiedTypeAlias       = Just "Word"
-                    , specifiedModuleNamespace = Nothing
-                    , table                    = table''
-                    }
-            in
-            mapM_ (runGenerator config) generators
+            let config = TableConfig { specifiedTypeAlias       = Just "Word"
+                                     , specifiedModuleNamespace = Nothing
+                                     , table                    = table''
+                                     }
+            in  mapM_ (runGenerator config) generators
 
         Left _ -> return ()
 
 runGenerator :: TableConfig -> (TableConfig -> Elm.ModuleFile) -> IO ()
 runGenerator config generator = do
-    let result = toString $ generator config
+    let raw    = generator config
+    let result = toString raw
     case result of
         Just r -> do
             putStrLn r
-        Nothing ->
-            return ()
+        Nothing -> putStrLn "Error"
+        -- pPrint raw

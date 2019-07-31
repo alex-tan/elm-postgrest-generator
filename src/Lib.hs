@@ -1,10 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Lib
-    ( run
-    )
+  ( run
+  )
 where
 
+import           Data.List                                ( intercalate )
 import qualified Hasql.Session                 as Session
 import qualified Hasql.Connection              as Connection
 import           TableDefinition                          ( tableSession )
@@ -22,65 +23,82 @@ import           Options.Applicative
 import           Data.Semigroup                           ( (<>) )
 import           Control.Monad                            ( join )
 
-data Cmdline = Cmdline
-  { hello      :: String
-  , quiet      :: Bool
-  , enthusiasm :: Int
-  }
+data Command
+  = Generate String String
+  | Commit String
 
 run :: IO ()
 run =
-    join $ customExecParser (prefs showHelpOnEmpty) (info opts idm)
+  let i :: ParserInfo Command
+      i = info opts idm
 
-generate :: IO ()
-generate = do
-    dbURL      <- getEnv "DATABASE_URL"
-    connection <- Connection.acquire (B.pack dbURL)
-    case connection of
-        Right connection' -> do
-            let runner = runTable connection'
-            runner "words"
-            Connection.release connection'
-        Left _ -> putStrLn "Couldn't establish connection to DB"
+      p :: ParserPrefs
+      p = prefs showHelpOnEmpty
+  in  do
+        Generate table alias <- customExecParser p i
+        generate table alias
 
-initConfig = return ()
+generate :: String -> String -> IO ()
+generate table alias = do
+  dbURL      <- getEnv "DATABASE_URL"
+  connection <- Connection.acquire (B.pack dbURL)
+  case connection of
+    Right connection' -> do
+      let runner = runTable connection'
+      runner table alias
+      Connection.release connection'
+    Left _ -> putStrLn "Couldn't establish connection to DB"
 
-opts :: Parser (IO ())
-opts = subparser
-    (  command
-            "init"
-            (info
-                (pure initConfig)
-                (progDesc "initialize the config file to run this program")
-            )
-    <> command "generate" (info (pure generate) (progDesc "generate elm files based on the config"))
-    )
+opts :: Parser Command
+opts = subparser (generateCommand <> commitCommand)
+
+-- command :: String -> ParserInfo a -> Mod CommandFields a
+-- info :: Parser a -> InfoMod a -> ParserInfo a
+-- strOption :: IsString s => Mod OptionFields s -> Parser s
+-- strArgument :: IsString s => Mod ArgumentFields s -> Parser s
+
+generateCommand :: Mod CommandFields Command
+generateCommand = command "generate" $ info
+  (Generate <$> strArgument (help "the name of the table") <*> strOption
+    (long "alias" <> help "The elm type alias")
+  )
+  (progDesc "Generate elm files")
+
+commitCommand :: Mod CommandFields Command
+commitCommand = command "commit" $ info
+  (Commit <$> strOption
+    (long "hello" <> metavar "TARGET" <> help "Target for the greeting")
+  )
+  (progDesc "Record changes to the repository")
 
 generators :: [TableConfig -> Elm.ModuleFile]
 generators =
-    [ Generators.Types.generate
-    , Generators.Decoders.generate
-    , Generators.Api.generate
-    ]
+  [ Generators.Api.generate
+  , Generators.Types.generate
+  , Generators.Decoders.generate
+  ]
 
-runTable :: Connection.Connection -> String -> IO ()
-runTable conn tableName = do
-    table' <- Session.run (tableSession tableName) conn
+runTable :: Connection.Connection -> String -> String -> IO ()
+runTable conn tableName alias = do
+  table' <- Session.run (tableSession tableName) conn
 
-    case table' of
-        Right table'' ->
-            let config = TableConfig { specifiedTypeAlias       = Just "Word"
-                                     , specifiedModuleNamespace = Nothing
-                                     , table                    = table''
-                                     }
-            in  mapM_ (runGenerator config) generators
+  case table' of
+    Right table'' ->
+      let config = TableConfig
+            { specifiedTypeAlias       = Just alias
+            , specifiedModuleNamespace = Nothing
+            , table                    = table''
+            }
+      in  mapM_ (runGenerator config) generators
 
-        Left _ -> return ()
+    Left _ -> return ()
 
 runGenerator :: TableConfig -> (TableConfig -> Elm.ModuleFile) -> IO ()
 runGenerator config generator = do
-    let raw    = generator config
-    let result = toString raw
-    case result of
-        Just r  -> putStrLn r
-        Nothing -> putStrLn "Error"
+  let raw    = generator config
+  let result = toString raw
+  case result of
+    Just r ->
+      let path = intercalate "/" $ typesModule config
+      in  writeFile ("./elm/" ++ path) r
+    Nothing -> putStrLn "Error"

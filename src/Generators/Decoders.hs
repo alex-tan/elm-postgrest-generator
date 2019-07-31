@@ -51,9 +51,11 @@ columnToDecoder col =
   let decoder = elmDataTypeToDecoder $ T.dataType col
   in  [ call
           (local "|>")
-          [ unqualifiedReference jsonDecodePipeline "required"
-          , string $ T.columnName col
-          , if T.isNullable col then decoder else call maybe [decoder]
+          [ call
+              (unqualifiedReference jsonDecodePipeline "required")
+              [ string $ T.columnName col
+              , if T.isNullable col then decoder else call maybe [decoder]
+              ]
           ]
       ]
 

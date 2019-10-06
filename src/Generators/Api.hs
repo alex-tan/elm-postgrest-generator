@@ -1,8 +1,10 @@
+{-# LANGUAGE NamedFieldPuns #-}
 module Generators.Api
     ( generate
     )
 where
 
+import qualified Imports
 import qualified Config                        as C
 import           Elm
 import qualified Generators.Decoders
@@ -12,67 +14,66 @@ import qualified Generators.Types
 generate :: C.TableConfig -> ModuleFile
 generate config = ModuleFile
     ["Api", C.moduleNamespace config]
-    [ exposedFunction
-        "getPlural"
-        [("params", postgrestReference "Params")]
-        (call (postgrestReference "Request") [call (local "List") [typeAlias']])
-        (call
-            (postgrestReference "getMany")
-            [ string endpoint
-            , record
-                [ ( "params"
-                  , call (postgrestReference "combineParams")
-                         [local "defaultParams", local "params"]
-                  )
-                , ("decoder", decoderReference "decodePlural")
-                ]
-            ]
-        )
-    , exposedFunction "post" [("submission", typeAlias')] (request typeAlias')
-        $ call
-              (postgrestReference "post")
-              [ string endpoint
-              , record
-                  [ ( "body"
-                    , call (encoderReference "encode") [local "submission"]
-                    )
-                  , ("decoder", decoderReference "decodeSingular")
-                  ]
-              ]
-    , exposedFunction "endpoint" [] (postgrestEndpoint typeAlias')
-        $ call (postgrestReference "endpoint") [string endpoint, decodeUnit]
-    ]
+    [getMany context, post context, endpoint context, url config]
   where
-    endpoint   = C.apiPrefix config ++ C.tableName config
-
-    decodeUnit = unqualifiedReference decoders "decodeSingular"
-
-    typeAlias' = unqualifiedReference
-        (C.importFromGenerator config Generators.Types.generate)
-        (C.tableTypeAliasName config)
-
-    request a = call (postgrestReference "Request") [a]
-
-    postgrestEndpoint a = call (postgrestReference "Endpoint") [a]
-
     decoders :: Import
-    decoders =
-        C.importFromGenerator config Generators.Decoders.generate
+    decoders = C.importFromGenerator config Generators.Decoders.generate
 
     encoders :: Import
-    encoders =
-        C.importFromGenerator config Generators.Encoders.generate
+    encoders = C.importFromGenerator config Generators.Encoders.generate
 
-    decoderReference = unqualifiedReference decoders
-    encoderReference = unqualifiedReference encoders
+    context  = Context
+        { typeAlias'       = unqualifiedReference
+                                 (C.importFromGenerator config
+                                                        Generators.Types.generate
+                                 )
+                                 (C.tableTypeAliasName config)
+        , decoderReference = unqualifiedReference decoders
+        , encoderReference = unqualifiedReference encoders
+        }
 
 postgrestReference :: FunctionName -> Expression
-postgrestReference = qualifiedReference postgrestImport
+postgrestReference = qualifiedReference Imports.postgrestClient
 
-postgrestImport :: Import
-postgrestImport = import_ postgrestClient (Just "P")
+data Context = Context
+    { typeAlias' :: Expression
+    , decoderReference :: FunctionName -> Expression
+    , encoderReference :: FunctionName -> Expression
+    }
 
-postgrestClient :: Module
-postgrestClient =
-    ExternalModule "alex-tan/postgrest-client" ["Postgrest", "Client"]
+getMany :: Context -> Expression
+getMany Context { typeAlias', decoderReference } = exposedFunction
+    "getMany"
+    []
+    (call (postgrestReference "Request") [call (local "List") [typeAlias']])
+    (call (postgrestReference "getMany") [local "endpoint", local "primaryKey"])
 
+post :: Context -> Expression
+post Context { typeAlias', decoderReference, encoderReference } =
+    let request a = call (postgrestReference "Request") [a]
+    in  exposedFunction "post" [("submission", typeAlias')] (request typeAlias')
+            $ call
+                  (postgrestReference "post")
+                  [ local "url"
+                  , record
+                      [ ( "body"
+                        , call (encoderReference "encode") [local "submission"]
+                        )
+                      , ("decoder", decoderReference "decodeSingular")
+                      ]
+                  ]
+
+endpoint :: Context -> Expression
+endpoint Context { typeAlias', decoderReference } =
+    let decodeUnit = decoderReference "decodeSingular"
+        postgrestEndpoint a = call (postgrestReference "Endpoint") [a]
+    in  exposedFunction "endpoint" [] (postgrestEndpoint typeAlias')
+            $ call (postgrestReference "endpoint") [local "url", decodeUnit]
+
+
+url :: C.TableConfig -> Expression
+url config = unexposedFunction
+    "url"
+    []
+    (local "String")
+    (string $ C.apiPrefix config ++ "/" ++ C.tableName config)

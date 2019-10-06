@@ -10,6 +10,7 @@ import           Prelude                           hiding ( maybe )
 import qualified TableDefinition               as T
 import           Elm
 import qualified Generators.Types
+import qualified Imports
 
 generate :: C.TableConfig -> ModuleFile
 generate config = ModuleFile ["Api", C.moduleNamespace config, "Decoders"]
@@ -28,10 +29,10 @@ generate config = ModuleFile ["Api", C.moduleNamespace config, "Decoders"]
     )
 
 jsonDecodeDecoder :: Expression
-jsonDecodeDecoder = unqualifiedReference jsonDecode "Decoder"
+jsonDecodeDecoder = unqualifiedReference Imports.elmJSONDecode "Decoder"
 
 jsonDecodeSucceed :: Expression
-jsonDecodeSucceed = unqualifiedReference jsonDecode "succeed"
+jsonDecodeSucceed = unqualifiedReference Imports.elmJSONDecode "succeed"
 
 columnToDecoder :: T.Column -> [Expression]
 columnToDecoder col =
@@ -39,7 +40,7 @@ columnToDecoder col =
   in  [ call
           (local "|>")
           [ call
-              (unqualifiedReference jsonDecodePipeline "required")
+              (unqualifiedReference Imports.jsonDecodePipeline "required")
               [ string $ T.columnName col
               , if T.isNullable col then decoder else call maybe [decoder]
               ]
@@ -47,28 +48,16 @@ columnToDecoder col =
       ]
 
 maybe :: Expression
-maybe = unqualifiedReference jsonDecode "maybe"
+maybe = unqualifiedReference Imports.elmJSONDecode "maybe"
 
 elmDataTypeToDecoder :: T.ElmDataType -> Expression
-elmDataTypeToDecoder T.String      = unqualifiedReference jsonDecode "string"
-elmDataTypeToDecoder T.Int         = unqualifiedReference jsonDecode "int"
-elmDataTypeToDecoder T.Float       = unqualifiedReference jsonDecode "float"
-elmDataTypeToDecoder T.Bool        = unqualifiedReference jsonDecode "bool"
+elmDataTypeToDecoder T.String =
+  unqualifiedReference Imports.elmJSONDecode "string"
+elmDataTypeToDecoder T.Int = unqualifiedReference Imports.elmJSONDecode "int"
+elmDataTypeToDecoder T.Float =
+  unqualifiedReference Imports.elmJSONDecode "float"
+elmDataTypeToDecoder T.Bool = unqualifiedReference Imports.elmJSONDecode "bool"
 elmDataTypeToDecoder (T.Unknown _) = local "unknownDecode"
-elmDataTypeToDecoder T.Posix = unqualifiedReference jsonDecodeExtra "datetime"
-elmDataTypeToDecoder T.Date        = local "unknownDateDecoder"
-
-jsonDecodePipeline :: Import
-jsonDecodePipeline = import_
-  (ExternalModule "NoRedInk/elm-json-decode-pipeline"
-                  ["Json", "Decode", "Pipeline"]
-  )
-  Nothing
-
-jsonDecode :: Import
-jsonDecode = import_ (ExternalModule "elm/json" ["Json", "Decode"]) Nothing
-
-jsonDecodeExtra :: Import
-jsonDecodeExtra = import_
-  (ExternalModule "elm-community/json-extra" ["Json", "Decode", "Extra"])
-  Nothing
+elmDataTypeToDecoder T.Posix =
+  unqualifiedReference Imports.jsonDecodeExtra "datetime"
+elmDataTypeToDecoder T.Date = local "unknownDateDecoder"

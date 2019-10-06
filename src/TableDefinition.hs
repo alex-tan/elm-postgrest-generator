@@ -23,6 +23,7 @@ import qualified Data.ByteString.Char8         as BSU
 import qualified Data.Map.Strict               as Map
 import           Data.Maybe                               ( fromMaybe )
 import           Elm
+import qualified Imports
 
 tableSession :: String -> Session Table
 tableSession table = do
@@ -63,15 +64,9 @@ elmDataTypeToString s           = show s
 
 elmDataTypeToExpression :: ElmDataType -> Expression
 elmDataTypeToExpression e = case e of
-    Posix -> unqualifiedReference elmTime "Posix"
-    Date  -> unqualifiedReference elmDate "Date"
+    Posix -> unqualifiedReference Imports.elmTime "Posix"
+    Date  -> unqualifiedReference Imports.date "Date"
     any'  -> local $ elmDataTypeToString any'
-
-elmTime :: Import
-elmTime = import_ (ExternalModule "elm/time" ["Time"]) Nothing
-
-elmDate :: Import
-elmDate = import_ (ExternalModule "justinmimbs/date" ["Date"]) Nothing
 
 -- http://wiki.postgresql.org/wiki/Retrieve_primary_key_columns
 primaryKeyStatement :: String -> Statement () [PrimaryKeyPart]

@@ -4,6 +4,7 @@ module Generators.Types
 where
 
 import qualified TableDefinition               as T
+import qualified Imports                                  ( elmAccessors )
 import           Elm
 import qualified Config                        as C
 
@@ -55,11 +56,7 @@ generate config = ModuleFile ["Api", C.moduleNamespace config, "Types"]
     fieldType_ = T.elmDataTypeToExpression . T.dataType $ col
 
 relation :: Expression
-relation = unqualifiedReference accessors "Relation"
+relation = unqualifiedReference Imports.elmAccessors "Relation"
 
 makeOneToOne :: Expression
-makeOneToOne = unqualifiedReference accessors "makeOneToOne"
-
-accessors :: Import
-accessors =
-  import_ (ExternalModule "bChiquet/elm-accessors" ["Accessors"]) Nothing
+makeOneToOne = unqualifiedReference Imports.elmAccessors "makeOneToOne"

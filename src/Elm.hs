@@ -9,6 +9,7 @@ module Elm
   , RecordDeclarationField(..)
   , Module(..)
   , FunctionName
+  , unexposedFunction
   , string
   , local
   , int
@@ -436,6 +437,14 @@ exposedFunction
   -> Expression
   -> Expression
 exposedFunction = FunctionDeclaration Public
+
+unexposedFunction
+  :: FunctionName
+  -> [FunctionParameter]
+  -> ReturnType
+  -> Expression
+  -> Expression
+unexposedFunction = FunctionDeclaration Private
 
 qualifiedReference :: Import -> FunctionName -> Expression
 qualifiedReference = ExternalReference Qualified

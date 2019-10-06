@@ -3,7 +3,10 @@
 module Config
   ( TableConfig(..)
   , tableTypeAlias
+  , decodersModule
+  , encodersModule
   , tableTypeAliasName
+  , apiModule
   , tableModule
   , columnFieldName
   , decodersModuleReference
@@ -32,20 +35,30 @@ data TableConfig = TableConfig
     { specifiedTypeAlias :: Maybe String
     , specifiedModuleNamespace :: Maybe String
     , table :: T.Table
+    , sourceDirectory :: String
     } deriving (Show)
 
 tableName = T.name . table
 
+apiModule :: TableConfig -> [String]
+apiModule config = ["Api", moduleNamespace config]
+
 typesModule :: TableConfig -> [String]
 typesModule config = ["Api", moduleNamespace config, "Types"]
 
+decodersModule :: TableConfig -> [String]
+decodersModule config = ["Api", moduleNamespace config, "Decoders"]
+
+encodersModule :: TableConfig -> [String]
+encodersModule config = ["Api", moduleNamespace config, "Encoders"]
+
 decodersModuleReference :: TableConfig -> Module
 decodersModuleReference config =
-  LocalModule $ intercalate "." ["Api", moduleNamespace config, "Decoders"]
+  LocalModule $ intercalate "." $ decodersModule config
 
 encodersModuleReference :: TableConfig -> Module
 encodersModuleReference config =
-  LocalModule $ intercalate "." ["Api", moduleNamespace config, "Encoders"]
+  LocalModule $ intercalate "." $ encodersModule config
 
 moduleNamespace :: TableConfig -> String
 moduleNamespace c =

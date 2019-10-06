@@ -12,22 +12,9 @@ import           Elm
 
 generate :: C.TableConfig -> ModuleFile
 generate config = ModuleFile ["Api", C.moduleNamespace config, "Decoders"]
-                             [decodePlural, decodeSingular, decodeUnit]
+                             [decodeUnit]
  where
-  typeAlias'   = C.tableTypeAlias config
-
-  decodePlural = exposedFunction
-    "decodePlural"
-    []
-    (call jsonDecodeDecoder [call (local "List") [typeAlias']])
-    (call (unqualifiedReference jsonDecode "list") [decodeUnitReference])
-
-  decodeSingular = exposedFunction
-    "decodeSingular"
-    []
-    (call jsonDecodeDecoder [typeAlias'])
-    (call (unqualifiedReference jsonDecode "index") [int 0, decodeUnitReference]
-    )
+  typeAlias' = C.tableTypeAlias config
 
   decodeUnit = exposedFunction
     "decodeUnit"
@@ -36,9 +23,6 @@ generate config = ModuleFile ["Api", C.moduleNamespace config, "Decoders"]
     (pipeRightChain (call jsonDecodeSucceed [typeAlias'])
                     (concatMap columnToDecoder (T.columns $ C.table config))
     )
-
-decodeUnitReference :: Expression
-decodeUnitReference = local "decodeUnit"
 
 jsonDecodeDecoder :: Expression
 jsonDecodeDecoder = unqualifiedReference jsonDecode "Decoder"

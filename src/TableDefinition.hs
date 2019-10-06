@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 
 module TableDefinition
     ( tableSession
@@ -25,19 +26,25 @@ import           Elm
 
 tableSession :: String -> Session Table
 tableSession table = do
-  -- Get the sum of a and b
-    cols <- Session.statement () (tableStatement table)
-    return $ Table table cols
+    cols    <- Session.statement () (tableStatement table)
+    pkParts <- Session.statement () (primaryKeyStatement table)
+    return $ Table table cols pkParts
 
 data Table = Table
     { name :: String
     , columns :: [Column]
+    , primaryKeyParts :: [PrimaryKeyPart]
     } deriving (Show)
 
 data Column = Column
     { columnName :: String
     , dataType :: ElmDataType
     , isNullable :: Bool
+    } deriving (Show)
+
+data PrimaryKeyPart = PrimaryKeyPart
+    { columnName :: String
+    , dataType :: ElmDataType
     } deriving (Show)
 
 data ElmDataType
@@ -66,12 +73,35 @@ elmTime = import_ (ExternalModule "elm/time" ["Time"]) Nothing
 elmDate :: Import
 elmDate = import_ (ExternalModule "justinmimbs/date" ["Date"]) Nothing
 
+-- http://wiki.postgresql.org/wiki/Retrieve_primary_key_columns
+primaryKeyStatement :: String -> Statement () [PrimaryKeyPart]
+primaryKeyStatement table = Statement sql HE.unit decoder True  where
+    sql :: BS.ByteString
+    sql =
+        BSU.pack
+            $ "SELECT a.attname, format_type(a.atttypid, a.atttypmod) AS data_type \
+            \ FROM   pg_index i \
+            \ JOIN   pg_attribute a ON a.attrelid = i.indrelid \
+            \ AND a.attnum = ANY(i.indkey) \
+            \ WHERE  i.indrelid = '"
+            ++ table
+            ++ "'::regclass \
+            \ AND    i.indisprimary"
+    decoder = HD.rowList tblRow
+    tblRow =
+        primaryKeyConstructor <$> HD.column HD.bytea <*> HD.column HD.bytea
+
 tableStatement :: String -> Statement () [Column]
 tableStatement table = Statement sql HE.unit decoder True  where
     sql :: BS.ByteString
     sql =
         BSU.pack
-            $ "select column_name, data_type, is_nullable = 'YES' as is_nullable from INFORMATION_SCHEMA.COLUMNS where table_name = '"
+            $ "select \
+                \column_name,\
+                \data_type, \
+                \is_nullable = 'YES' as is_nullable \
+                \from INFORMATION_SCHEMA.COLUMNS \
+                \where table_name = '"
             ++ table
             ++ "'"
     decoder = HD.rowList tblRow
@@ -126,5 +156,9 @@ toDataType bs =
 columnConstructor :: BS.ByteString -> BS.ByteString -> Bool -> Column
 columnConstructor columnName dataType =
     Column (BSU.unpack columnName) (toDataType dataType)
+
+primaryKeyConstructor :: BS.ByteString -> BS.ByteString -> PrimaryKeyPart
+primaryKeyConstructor columnName dataType =
+    PrimaryKeyPart (BSU.unpack columnName) (toDataType dataType)
 
 

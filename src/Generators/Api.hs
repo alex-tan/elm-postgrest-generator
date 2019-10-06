@@ -15,7 +15,6 @@ generate config = ModuleFile
     [ exposedFunction
         "getPlural"
         [("params", postgrestReference "Params")]
-
         (call (postgrestReference "Request") [call (local "List") [typeAlias']])
         (call
             (postgrestReference "getMany")
@@ -25,7 +24,7 @@ generate config = ModuleFile
                   , call (postgrestReference "combineParams")
                          [local "defaultParams", local "params"]
                   )
-                , ("decoder", unqualifiedReference decoders "decodePlural")
+                , ("decoder", decoderReference "decodePlural")
                 ]
             ]
         )
@@ -35,10 +34,9 @@ generate config = ModuleFile
               [ string endpoint
               , record
                   [ ( "body"
-                    , call (unqualifiedReference encoders "encode")
-                           [local "submission"]
+                    , call (encoderReference "encode") [local "submission"]
                     )
-                  , ("decoder", unqualifiedReference decoders "decodeSingular")
+                  , ("decoder", decoderReference "decodeSingular")
                   ]
               ]
     , exposedFunction "endpoint" [] (postgrestEndpoint typeAlias')
@@ -65,6 +63,11 @@ generate config = ModuleFile
     encoders =
         C.importFromGenerator config $ Generators.Encoders.generate config
 
+    decoderReference = unqualifiedReference decoders
+    encoderReference = unqualifiedReference encoders
+
+
+postgrestReference :: FunctionName -> Expression
 postgrestReference = qualifiedReference postgrestImport
 
 postgrestImport :: Import

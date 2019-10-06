@@ -8,6 +8,7 @@ module Elm
   , ModuleFile(ModuleFile, moduleNameParts)
   , RecordDeclarationField(..)
   , Module(..)
+  , FunctionName
   , string
   , local
   , int

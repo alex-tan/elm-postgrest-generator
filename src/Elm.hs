@@ -5,7 +5,7 @@ module Elm
   ( Expression
   , Exposure(..)
   , Import
-  , ModuleFile(ModuleFile)
+  , ModuleFile(ModuleFile, moduleNameParts)
   , RecordDeclarationField(..)
   , Module(..)
   , string
@@ -51,9 +51,8 @@ data ModuleFile = ModuleFile
   } deriving (Show)
 
 toString :: ModuleFile -> Maybe String
-toString moduleFile
-  = let
-      moduleName' :: String
+toString moduleFile =
+  let moduleName' :: String
       moduleName'        = intercalate "." (moduleNameParts moduleFile)
       importsAndExports_ = importsAndExports $ expressions moduleFile
       moduleLine         = unwords
@@ -67,19 +66,18 @@ toString moduleFile
         $ importsAndExports_
         ]
       contents =
-        intercalate "\n"
-          . intercalate [blankLine]
-          . filter (not . null)
-          $ [ [moduleLine]
-            , map importLine $ Map.elems $ imports importsAndExports_
-            , (map (expressionToString 0) . expressions) moduleFile
-            ]
-    in
-      fmap (Text.unpack . Render.render Elm_0_19)
-      . RR.toMaybe
-      . Parse.parse
-      . Text.pack
-      $ contents
+          intercalate "\n"
+            . intercalate [blankLine]
+            . filter (not . null)
+            $ [ [moduleLine]
+              , map importLine $ Map.elems $ imports importsAndExports_
+              , (map (expressionToString 0) . expressions) moduleFile
+              ]
+  in  fmap (Text.unpack . Render.render Elm_0_19)
+        . RR.toMaybe
+        . Parse.parse
+        . Text.pack
+        $ contents
 
 pipeRightChain :: Expression -> [Expression] -> Expression
 pipeRightChain start parts = applyEach . intersperse LineEnd $ (start : parts)
@@ -92,101 +90,100 @@ applyEach []       = local ""
 type IndentLevel = Int
 
 expressionToString :: IndentLevel -> Expression -> String
-expressionToString iL expr
-  = let
-      toStringAtCurrentIndent = expressionToString iL
+expressionToString iL expr =
+  let
+    toStringAtCurrentIndent = expressionToString iL
 
-      nextIndentLevel         = iL + 1
-    in
-      case expr of
-        TypeVariable s -> s
-        Int_         i -> show i
-        Call e es ->
-          let firstString = expressionToString iL e
-              call' = unwords (firstString : map toStringAtCurrentIndent es)
-          in  if isOperator firstString
-                then indent iL call'
-                else parenthesize call'
-        FunctionDeclaration _ name args returnType exp -> intercalate
-          "\n"
-          (sig : assignment : toStringAtCurrentIndent exp : [blankLine])
-         where
-          sig = unwords
-            [ name
-            , ":"
-            , intercalate
-              " -> "
-              (  map (expressionToString 0 . snd) args
-              ++ [expressionToString 0 returnType]
-              )
+    nextIndentLevel         = iL + 1
+  in
+    case expr of
+      TypeVariable s -> s
+      Int_         i -> show i
+      Call e es ->
+        let firstString = expressionToString iL e
+            call'       = unwords (firstString : map toStringAtCurrentIndent es)
+        in  if isOperator firstString
+              then indent iL call'
+              else parenthesize call'
+      FunctionDeclaration _ name args returnType exp -> intercalate
+        "\n"
+        (sig : assignment : toStringAtCurrentIndent exp : [blankLine])
+       where
+        sig = unwords
+          [ name
+          , ":"
+          , intercalate
+            " -> "
+            (  map (expressionToString 0 . snd) args
+            ++ [expressionToString 0 returnType]
+            )
+          ]
+        assignment = (unwords . (:) name . map fst) args ++ " ="
+      ExternalReference q i f -> importFunction q i f
+      Lambda params expr' ->
+        parenthesize
+          . unwords
+          $ ["\\" ++ unwords params, "->", toStringAtCurrentIndent expr']
+      LineEnd          -> "\n"
+      LocalReference f -> f
+      Parentheses es ->
+        parenthesize . unwords . map toStringAtCurrentIndent $ es
+      Record fields -> intercalate "\n" $ DI.imap fieldToString fields ++ ["}"]
+      RecordDeclaration _ name fields ->
+        intercalate ""
+          . intersperse "\n"
+          . concat
+          $ [ [name ++ " :"]
+            , DI.imap recordDeclarationSignatureToString fields
+            , [indent nextIndentLevel "}"]
+            , [name ++ " ="]
+            , DI.imap recordDeclarationFieldToString fields
+            , [indent nextIndentLevel "}", blankLine]
             ]
-          assignment = (unwords . (:) name . map fst) args ++ " ="
-        ExternalReference q i f -> importFunction q i f
-        Lambda params expr' ->
-          parenthesize
-            . unwords
-            $ ["\\" ++ unwords params, "->", toStringAtCurrentIndent expr']
-        LineEnd          -> "\n"
-        LocalReference f -> f
-        Parentheses es ->
-          parenthesize . unwords . map toStringAtCurrentIndent $ es
-        Record fields ->
-          intercalate "\n" $ DI.imap fieldToString fields ++ ["}"]
-        RecordDeclaration _ name fields ->
-          intercalate ""
-            . intersperse "\n"
-            . concat
-            $ [ [name ++ " :"]
-              , DI.imap recordDeclarationSignatureToString fields
-              , [indent nextIndentLevel "}"]
-              , [name ++ " ="]
-              , DI.imap recordDeclarationFieldToString fields
-              , [indent nextIndentLevel "}", blankLine]
-              ]
-         where
-          recordDeclarationSignatureToString
-            :: Int -> RecordDeclarationField -> String
-          recordDeclarationSignatureToString index rdf = indent
-            1
-            (unwords
-              [ recordOpener index
-              , rdfName rdf
-              , ":"
-              , intercalate " -> " . map toStringAtCurrentIndent $ rdfSignature
-                rdf
-              ]
-            )
-          recordDeclarationFieldToString
-            :: Int -> RecordDeclarationField -> String
-          recordDeclarationFieldToString index rdf = indent
-            1
-            (unwords
-              [ recordOpener index
-              , rdfName rdf
-              , "="
-              , toStringAtCurrentIndent $ rdfValue rdf
-              ]
-            )
-        Str s                   -> "\"" ++ s ++ "\""
-        TypeAlias _ name fields -> intercalate
-          "\n"
-          (  ("type alias " ++ name ++ " =")
-          :  DI.imap typeAliasFieldToString fields
-          ++ [indent 1 "}", blankLine]
+       where
+        recordDeclarationSignatureToString
+          :: Int -> RecordDeclarationField -> String
+        recordDeclarationSignatureToString index rdf = indent
+          1
+          (unwords
+            [ recordOpener index
+            , rdfName rdf
+            , ":"
+            , intercalate " -> " . map toStringAtCurrentIndent $ rdfSignature
+              rdf
+            ]
           )
-         where
-          typeAliasFieldToString :: Int -> Expression -> String
-          typeAliasFieldToString index expr' = indent
-            nextIndentLevel
-            (recordOpener index ++ " " ++ toStringAtCurrentIndent expr')
-        UpdateRecord recordVar fields ->
-          unwords
-            $  ["{", recordVar, "|"]
-            ++ map recordFieldUpdateToString fields
-            ++ ["}"]
+        recordDeclarationFieldToString
+          :: Int -> RecordDeclarationField -> String
+        recordDeclarationFieldToString index rdf = indent
+          1
+          (unwords
+            [ recordOpener index
+            , rdfName rdf
+            , "="
+            , toStringAtCurrentIndent $ rdfValue rdf
+            ]
+          )
+      Str s                   -> "\"" ++ s ++ "\""
+      TypeAlias _ name fields -> intercalate
+        "\n"
+        (  ("type alias " ++ name ++ " =")
+        :  DI.imap typeAliasFieldToString fields
+        ++ [indent 1 "}", blankLine]
+        )
+       where
+        typeAliasFieldToString :: Int -> Expression -> String
+        typeAliasFieldToString index expr' = indent
+          nextIndentLevel
+          (recordOpener index ++ " " ++ toStringAtCurrentIndent expr')
+      UpdateRecord recordVar fields ->
+        unwords
+          $  ["{", recordVar, "|"]
+          ++ map recordFieldUpdateToString fields
+          ++ ["}"]
 
-        Field name exps ->
-          unwords $ name : ":" : map toStringAtCurrentIndent exps
+      Field name exps ->
+        unwords $ name : ":" : map toStringAtCurrentIndent exps
 
 recordFieldUpdateToString :: (FieldName, Expression) -> String
 recordFieldUpdateToString (name, expr) =
@@ -203,7 +200,7 @@ importLine :: Import -> String
 importLine import' =
   unwords
     .  catMaybes
-    $  [Just "import", (Just . moduleName . module_) import']
+    $  [Just "import", (Just . moduleNameString . module_) import']
     ++ qualification
     ++ exposure'
  where
@@ -225,7 +222,7 @@ addExport :: String -> ImportsAndExports -> ImportsAndExports
 addExport s i = i { exports = Set.insert s (exports i) }
 
 emptyIE :: ImportsAndExports
-emptyIE = ImportsAndExports {imports = Map.empty, exports = Set.empty}
+emptyIE = ImportsAndExports { imports = Map.empty, exports = Set.empty }
 
 mergeIE :: ImportsAndExports -> ImportsAndExports -> ImportsAndExports
 mergeIE a b = ImportsAndExports
@@ -247,9 +244,11 @@ importsAndExportsFromExpression expression = case expression of
   Int_         _                -> emptyIE
   TypeVariable _                -> emptyIE
   ExternalReference q import' f -> emptyIE
-    { imports =
-      Map.fromList
-        [(moduleName . module_ $ import', setQualification q f import')]
+    { imports = Map.fromList
+                  [ ( moduleNameString . module_ $ import'
+                    , setQualification q f import'
+                    )
+                  ]
     }
   FunctionDeclaration Public name args return' exp' -> foldIE
     (emptyIE { exports = Set.fromList [name] })
@@ -303,14 +302,14 @@ mergeSameImportExposures a b = case (exposing a, exposing b) of
     a { exposing = ExposeSome $ Set.union someA someB }
 
 importFunction :: Qualification -> Import -> String -> String
-importFunction q i f = case q of
-  Qualified   -> explicitFunction i f
-  Unqualified -> f
+importFunction q i func = case q of
+  Qualified   -> explicitFunction i func
+  Unqualified -> func
 
 explicitFunction :: Import -> String -> String
-explicitFunction i f = case alias i of
-  Just a  -> dotJoin a f
-  Nothing -> dotJoin (moduleName (module_ i)) f
+explicitFunction imp func = case alias imp of
+  Just a  -> dotJoin a func
+  Nothing -> dotJoin (moduleNameString . module_ $ imp) func
 
 dotJoin :: String -> String -> String
 dotJoin a b = a ++ "." ++ b
@@ -323,13 +322,18 @@ data Module
   | LocalModule ModuleName
   deriving (Show, Ord, Eq)
 
-moduleName :: Module -> String
-moduleName (ExternalModule _ a) = a
-moduleName (LocalModule a     ) = a
+moduleNamePartsFromModule :: Module -> [String]
+moduleNamePartsFromModule (ExternalModule _ a) = a
+moduleNamePartsFromModule (LocalModule a     ) = a
 
-importAs :: String -> String -> Import
-importAs name alias =
-  Import {alias = Just alias, module_ = LocalModule name, exposing = ExposeNone}
+moduleNameString :: Module -> String
+moduleNameString = intercalate "." . moduleNamePartsFromModule
+
+importAs :: [String] -> String -> Import
+importAs name alias = Import { alias    = Just alias
+                             , module_  = LocalModule name
+                             , exposing = ExposeNone
+                             }
 
 data Exposure
   = ExposeAll
@@ -342,7 +346,7 @@ exposeSome = ExposeSome . Set.fromList
 
 type FieldName = String
 type FunctionName = String
-type ModuleName = String
+type ModuleName = [String]
 type Package = String
 type RecordName = String
 type TypeAliasName = String
@@ -448,3 +452,4 @@ indent n s = replicate (n * 4) ' ' ++ s
 
 blankLine :: String
 blankLine = ""
+

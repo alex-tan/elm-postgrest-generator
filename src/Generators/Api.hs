@@ -5,34 +5,34 @@ where
 
 import qualified Config                        as C
 import           Elm
+import qualified Generators.Decoders
+import qualified Generators.Encoders
+import qualified Generators.Types
 
 generate :: C.TableConfig -> ModuleFile
 generate config = ModuleFile
     ["Api", C.moduleNamespace config]
     [ exposedFunction
         "getPlural"
-        [("params", unqualifiedReference postgrestImport "Params")]
+        [("params", postgrestReference "Params")]
 
-        (call (unqualifiedReference postgrestImport "Request")
-              [call (local "List") [typeAlias]]
-        )
+        (call (postgrestReference "Request") [call (local "List") [typeAlias']])
         (call
-            (unqualifiedReference postgrestImport "get")
-            [ string $ C.tableName config
+            (postgrestReference "getMany")
+            [ string endpoint
             , record
                 [ ( "params"
-                  , call
-                      (unqualifiedReference postgrestImport "combineParams")
-                      [local "defaultParams", local "params"]
+                  , call (postgrestReference "combineParams")
+                         [local "defaultParams", local "params"]
                   )
                 , ("decoder", unqualifiedReference decoders "decodePlural")
                 ]
             ]
         )
-    , exposedFunction "post" [("submission", typeAlias)] (request typeAlias)
+    , exposedFunction "post" [("submission", typeAlias')] (request typeAlias')
         $ call
-              (unqualifiedReference postgrestImport "post")
-              [ string $ C.tableName config
+              (postgrestReference "post")
+              [ string endpoint
               , record
                   [ ( "body"
                     , call (unqualifiedReference encoders "encode")
@@ -41,20 +41,36 @@ generate config = ModuleFile
                   , ("decoder", unqualifiedReference decoders "decodeSingular")
                   ]
               ]
+    , exposedFunction "endpoint" [] (postgrestEndpoint typeAlias')
+        $ call (postgrestReference "endpoint") [string endpoint, decodeUnit]
     ]
   where
-    request a = call (unqualifiedReference postgrestImport "Request") [a]
+    endpoint   = C.apiPrefix config ++ C.tableName config
 
-    typeAlias = C.tableTypeAlias config
+    decodeUnit = unqualifiedReference decoders "decodeSingular"
+
+    typeAlias' = unqualifiedReference
+        (C.importFromGenerator config $ Generators.Types.generate config)
+        (C.tableTypeAliasName config)
+
+    request a = call (postgrestReference "Request") [a]
+
+    postgrestEndpoint a = call (postgrestReference "Endpoint") [a]
 
     decoders :: Import
-    decoders = import_ (C.decodersModuleReference config) Nothing
+    decoders =
+        C.importFromGenerator config $ Generators.Decoders.generate config
 
     encoders :: Import
-    encoders = import_ (C.encodersModuleReference config) Nothing
+    encoders =
+        C.importFromGenerator config $ Generators.Encoders.generate config
 
-postgrest = unqualifiedReference postgrestImport
+postgrestReference = qualifiedReference postgrestImport
 
 postgrestImport :: Import
-postgrestImport = import_ (LocalModule "Api.Postgrest") Nothing
+postgrestImport = import_ postgrestClient (Just "P")
+
+postgrestClient :: Module
+postgrestClient =
+    ExternalModule "alex-tan/postgrest-client" ["Postgrest", "Client"]
 

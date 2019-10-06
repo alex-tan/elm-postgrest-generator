@@ -61,10 +61,10 @@ elmDataTypeToExpression e = case e of
     any'  -> local $ elmDataTypeToString any'
 
 elmTime :: Import
-elmTime = import_ (ExternalModule "elm/time" "Time") Nothing
+elmTime = import_ (ExternalModule "elm/time" ["Time"]) Nothing
 
 elmDate :: Import
-elmDate = import_ (ExternalModule "justinmimbs/date" "Date") Nothing
+elmDate = import_ (ExternalModule "justinmimbs/date" ["Date"]) Nothing
 
 tableStatement :: String -> Statement () [Column]
 tableStatement table = Statement sql HE.unit decoder True  where

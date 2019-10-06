@@ -2,17 +2,11 @@
 
 module Config
   ( TableConfig(..)
-  , tableTypeAlias
-  , decodersModule
-  , encodersModule
   , tableTypeAliasName
-  , apiModule
+  , importFromGenerator
   , tableModule
   , columnFieldName
-  , decodersModuleReference
   , moduleNamespace
-  , typesModule
-  , encodersModuleReference
   , tableName
   )
 where
@@ -22,6 +16,8 @@ import           Elm                                      ( Expression
                                                           , unqualifiedReference
                                                           , import_
                                                           , Import
+                                                          , moduleNameParts
+                                                          , ModuleFile
                                                           )
 import qualified TableDefinition               as T
 import           Data.Char                     as Char
@@ -36,37 +32,14 @@ data TableConfig = TableConfig
     , specifiedModuleNamespace :: Maybe String
     , table :: T.Table
     , sourceDirectory :: String
+    , apiPrefix :: String
     } deriving (Show)
 
 tableName = T.name . table
 
-apiModule :: TableConfig -> [String]
-apiModule config = ["Api", moduleNamespace config]
-
-typesModule :: TableConfig -> [String]
-typesModule config = ["Api", moduleNamespace config, "Types"]
-
-decodersModule :: TableConfig -> [String]
-decodersModule config = ["Api", moduleNamespace config, "Decoders"]
-
-encodersModule :: TableConfig -> [String]
-encodersModule config = ["Api", moduleNamespace config, "Encoders"]
-
-decodersModuleReference :: TableConfig -> Module
-decodersModuleReference config =
-  LocalModule $ intercalate "." $ decodersModule config
-
-encodersModuleReference :: TableConfig -> Module
-encodersModuleReference config =
-  LocalModule $ intercalate "." $ encodersModule config
-
 moduleNamespace :: TableConfig -> String
 moduleNamespace c =
   fromMaybe (tableModule . T.name . table $ c) (specifiedModuleNamespace c)
-
-tableTypeAlias :: TableConfig -> Expression
-tableTypeAlias config =
-  unqualifiedReference (typesModuleImport config) $ tableTypeAliasName config
 
 tableTypeAliasName :: TableConfig -> String
 tableTypeAliasName TableConfig { specifiedTypeAlias, table } =
@@ -85,6 +58,8 @@ capitalized :: String -> String
 capitalized (x : xs) = Char.toUpper x : xs
 capitalized []       = []
 
-typesModuleImport :: TableConfig -> Import
-typesModuleImport config =
-  import_ (LocalModule $ (intercalate "." . typesModule) config) Nothing
+importFromGenerator :: TableConfig -> ModuleFile -> Import
+importFromGenerator config generator =
+  let module_ :: Module
+      module_ = (LocalModule . moduleNameParts) generator
+  in  import_ module_ Nothing

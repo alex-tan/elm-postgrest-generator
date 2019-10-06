@@ -8,7 +8,8 @@ import           Elm
 import qualified Config                        as C
 
 generate :: C.TableConfig -> ModuleFile
-generate config = ModuleFile (C.typesModule config) [typeAlias', accessorMap]
+generate config = ModuleFile ["Api", C.moduleNamespace config, "Types"]
+                             [typeAlias', accessorMap]
  where
   typeAliasName = C.tableTypeAliasName config
 
@@ -61,4 +62,4 @@ makeOneToOne = unqualifiedReference accessors "makeOneToOne"
 
 accessors :: Import
 accessors =
-  import_ (ExternalModule "bChiquet/elm-accessors" "Accessors") Nothing
+  import_ (ExternalModule "bChiquet/elm-accessors" ["Accessors"]) Nothing

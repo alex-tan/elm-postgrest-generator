@@ -58,8 +58,8 @@ capitalized :: String -> String
 capitalized (x : xs) = Char.toUpper x : xs
 capitalized []       = []
 
-importFromGenerator :: TableConfig -> ModuleFile -> Import
+importFromGenerator :: TableConfig -> (TableConfig -> ModuleFile) -> Import
 importFromGenerator config generator =
   let module_ :: Module
-      module_ = (LocalModule . moduleNameParts) generator
+      module_ = (LocalModule . moduleNameParts) (generator config)
   in  import_ module_ Nothing

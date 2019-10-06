@@ -16,7 +16,7 @@ generate config = ModuleFile ["Api", C.moduleNamespace config, "Decoders"]
                              [decodeUnit]
  where
   typeAlias' = unqualifiedReference
-    (C.importFromGenerator config $ Generators.Types.generate config)
+    (C.importFromGenerator config Generators.Types.generate)
     (C.tableTypeAliasName config)
 
   decodeUnit = exposedFunction

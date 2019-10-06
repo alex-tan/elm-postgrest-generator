@@ -48,7 +48,7 @@ generate config = ModuleFile
     decodeUnit = unqualifiedReference decoders "decodeSingular"
 
     typeAlias' = unqualifiedReference
-        (C.importFromGenerator config $ Generators.Types.generate config)
+        (C.importFromGenerator config Generators.Types.generate)
         (C.tableTypeAliasName config)
 
     request a = call (postgrestReference "Request") [a]
@@ -57,15 +57,14 @@ generate config = ModuleFile
 
     decoders :: Import
     decoders =
-        C.importFromGenerator config $ Generators.Decoders.generate config
+        C.importFromGenerator config Generators.Decoders.generate
 
     encoders :: Import
     encoders =
-        C.importFromGenerator config $ Generators.Encoders.generate config
+        C.importFromGenerator config Generators.Encoders.generate
 
     decoderReference = unqualifiedReference decoders
     encoderReference = unqualifiedReference encoders
-
 
 postgrestReference :: FunctionName -> Expression
 postgrestReference = qualifiedReference postgrestImport

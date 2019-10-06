@@ -109,27 +109,25 @@ runTable conn tableName alias sourceDirectory apiPrefix = do
 
 runGenerator :: TableConfig -> (TableConfig -> Elm.ModuleFile) -> IO ()
 runGenerator config generator =
-  let
-    raw    = generator config
-    result = toString raw
-    src    = C.sourceDirectory config
-  in
-    do
-      exists <- D.doesDirectoryExist src
-      unless exists $ D.createDirectory src
-      case result of
-        Just r ->
-          let
-            path     = intercalate "/" $ moduleNameParts raw
-            fullPath = (C.sourceDirectory config ++ path ++ ".elm")
-          in
-            putStrLn ("Writing " ++ fullPath)
-            >> ((createDirectoryRecursive src . map fromString . moduleNameParts
-                )
-                 raw
-               )
-            >> writeFile fullPath r
-        Nothing -> putStrLn "Error"
+  let raw    = generator config
+      result = toString raw
+      src    = C.sourceDirectory config
+  in  do
+        exists <- D.doesDirectoryExist src
+        unless exists $ D.createDirectory src
+        case result of
+          Just r ->
+            let parts    = moduleNameParts raw
+                path     = intercalate "/" parts
+                fullPath = (C.sourceDirectory config ++ path ++ ".elm")
+            in  putStrLn ("Writing " ++ fullPath)
+                  >> ( createDirectoryRecursive src
+                     . map fromString
+                     . take ((length parts) - 1)
+                     $ parts
+                     )
+                  >> writeFile fullPath r
+          Nothing -> putStrLn "Error"
 
 createDirectoryRecursive :: FilePath -> [FilePath] -> IO FilePath
 createDirectoryRecursive base []       = return base

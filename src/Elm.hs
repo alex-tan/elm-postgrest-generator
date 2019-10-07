@@ -12,13 +12,13 @@ module Elm
   , unexposedFunction
   , string
   , local
+  , importUnaliased
   , int
   , exposeSome
   , exposedFunction
   , exposedTypeAlias
   , exposedRecordDeclaration
-  , import_
-  , importAs
+  , importAliased
   , record
   , lambda
   , typeVariable
@@ -316,8 +316,11 @@ explicitFunction imp func = case alias imp of
 dotJoin :: String -> String -> String
 dotJoin a b = a ++ "." ++ b
 
-import_ :: Module -> Maybe String -> Import
-import_ a b = Import a b ExposeNone
+importUnaliased :: Module -> Import
+importUnaliased a = Import a Nothing ExposeNone
+
+importAliased :: Module -> String -> Import
+importAliased a b = Import a (Just b) ExposeNone
 
 data Module
   = ExternalModule Package ModuleName
@@ -331,11 +334,6 @@ moduleNamePartsFromModule (LocalModule a     ) = a
 moduleNameString :: Module -> String
 moduleNameString = intercalate "." . moduleNamePartsFromModule
 
-importAs :: [String] -> String -> Import
-importAs name alias = Import { alias    = Just alias
-                             , module_  = LocalModule name
-                             , exposing = ExposeNone
-                             }
 
 data Exposure
   = ExposeAll

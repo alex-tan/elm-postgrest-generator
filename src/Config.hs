@@ -14,7 +14,7 @@ where
 import           Elm                                      ( Expression
                                                           , Module(LocalModule)
                                                           , unqualifiedReference
-                                                          , import_
+                                                          , importUnaliased
                                                           , Import
                                                           , moduleNameParts
                                                           , ModuleFile
@@ -62,4 +62,4 @@ importFromGenerator :: TableConfig -> (TableConfig -> ModuleFile) -> Import
 importFromGenerator config generator =
   let module_ :: Module
       module_ = (LocalModule . moduleNameParts) (generator config)
-  in  import_ module_ Nothing
+  in  importUnaliased module_

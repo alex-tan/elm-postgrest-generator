@@ -3,31 +3,29 @@ module Imports where
 import           Elm
 
 postgrestClient :: Import
-postgrestClient = import_
+postgrestClient = importAliased
   (ExternalModule "alex-tan/postgrest-client" ["Postgrest", "Client"])
-  Nothing
+  "P"
 
 elmJSONDecode :: Import
-elmJSONDecode = import_ (ExternalModule "elm/json" ["Json", "Decode"]) Nothing
+elmJSONDecode = importUnaliased (ExternalModule "elm/json" ["Json", "Decode"])
 
 jsonDecodePipeline :: Import
-jsonDecodePipeline = import_
+jsonDecodePipeline = importUnaliased
   (ExternalModule "NoRedInk/elm-json-decode-pipeline"
                   ["Json", "Decode", "Pipeline"]
   )
-  Nothing
 
 jsonDecodeExtra :: Import
-jsonDecodeExtra = import_
+jsonDecodeExtra = importUnaliased
   (ExternalModule "elm-community/json-extra" ["Json", "Decode", "Extra"])
-  Nothing
 
 elmTime :: Import
-elmTime = import_ (ExternalModule "elm/time" ["Time"]) Nothing
+elmTime = importUnaliased (ExternalModule "elm/time" ["Time"])
 
 date :: Import
-date = import_ (ExternalModule "justinmimbs/date" ["Date"]) Nothing
+date = importUnaliased (ExternalModule "justinmimbs/date" ["Date"])
 
 elmAccessors :: Import
 elmAccessors =
-  import_ (ExternalModule "bChiquet/elm-accessors" ["Accessors"]) Nothing
+  importUnaliased (ExternalModule "bChiquet/elm-accessors" ["Accessors"])

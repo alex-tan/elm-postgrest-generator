@@ -2,6 +2,5 @@
 elm-postgrest-generator.cabal
 *~
 .env
-output/*
 .DS_Store
 elm/

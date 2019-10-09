@@ -69,16 +69,18 @@ generateCommand :: Mod CommandFields Command
 generateCommand = command "generate" $ info
   (   Generate
   <$> strArgument (metavar "table" <> help "the name of the table")
-  <*> strOption (long "alias" <> help "The elm type alias")
+  <*> strOption (long "alias" <> help "The elm type alias; e.g. an `animals` table the type alias might be Animal")
   <*> strOption
         (  long "output"
         <> help "The root directory to output the elm code"
         <> value "./src"
+        <> showDefault
         )
   <*> strOption
         (  long "api-prefix"
-        <> help "URL to prefix your postgrest endpoints with."
+        <> help "URL to prefix your postgrest endpoints with. e.g. /api"
         <> value "/"
+        <> showDefault
         )
   )
   (progDesc "Generate elm files")

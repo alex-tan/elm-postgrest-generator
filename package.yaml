@@ -1,14 +1,14 @@
-name:                elm-postgrest-generator
-version:             0.1.0.0
-github:              "alex-tan/elm-postgrest-generator"
-license:             BSD3
-author:              "Alex Tan"
-maintainer:          "alex.r.tan@gmail.com"
-copyright:           "2019 Alex Tan"
+name: elm-postgrest-generator
+version: 0.1.0.0
+github: "alex-tan/elm-postgrest-generator"
+license: BSD3
+author: "Alex Tan"
+maintainer: "alex.r.tan@gmail.com"
+copyright: "2019 Alex Tan"
 
 extra-source-files:
-- README.md
-- ChangeLog.md
+  - README.md
+  - ChangeLog.md
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
@@ -17,66 +17,66 @@ extra-source-files:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/alex-tan/elm-postgrest-generator#readme>
+description: Please see the README on GitHub at <https://github.com/alex-tan/elm-postgrest-generator#readme>
 
 dependencies:
-- base >= 4.7 && < 5
+  - base >= 4.7 && < 5
 
 library:
   source-dirs:
-  - src
-  - elm-format/src
-  - elm-format/parser/src
-  - elm-format/markdown
+    - src
+    - elm-format/src
+    - elm-format/parser/src
+    - elm-format/markdown
   dependencies:
-  - bytestring
-  - casing
-  - containers
-  - hasql
-  - ilist
-  - optparse-applicative
-  - pretty-simple
-  - safe
-  - text
-  # elm-format
-  - aeson
-  - ansi-terminal
-  - ansi-wl-pprint
-  - base
-  - binary
-  - bytestring
-  - containers
-  - directory
-  - edit-distance
-  - filepath
-  - free
-  - indents
-  - json
-  - mtl
-  - optparse-applicative
-  - parsec
-  - process
-  - split
-  - text
+    - bytestring
+    - casing
+    - containers
+    - hasql
+    - ilist
+    - optparse-applicative
+    - pretty-simple
+    - safe
+    - text
+    # elm-format
+    - aeson
+    - ansi-terminal
+    - ansi-wl-pprint
+    - base
+    - binary
+    - bytestring
+    - containers
+    - directory
+    - edit-distance
+    - filepath
+    - free
+    - indents
+    - json
+    - mtl
+    - optparse-applicative
+    - parsec
+    - process
+    - split
+    - text
 
 executables:
-  elm-generate:
-    main:                Main.hs
-    source-dirs:         app
+  epg:
+    main: Main.hs
+    source-dirs: app
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
     dependencies:
-    - elm-postgrest-generator
+      - elm-postgrest-generator
 
 tests:
   elm-postgrest-generator-test:
-    main:                Spec.hs
-    source-dirs:         test
+    main: Spec.hs
+    source-dirs: test
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
     dependencies:
-    - elm-postgrest-generator
+      - elm-postgrest-generator

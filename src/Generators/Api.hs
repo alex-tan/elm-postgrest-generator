@@ -76,4 +76,4 @@ url config = unexposedFunction
     "url"
     []
     (local "String")
-    (string $ C.apiPrefix config ++ "/" ++ C.tableName config)
+    (string $ C.urlPrefix config ++ "/" ++ C.tableName config)

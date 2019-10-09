@@ -36,7 +36,7 @@ data Command
     { table :: String
     , alias :: String
     , sourceDirectory :: String
-    , apiPrefix :: String
+    , urlPrefix :: String
     }
   | Commit String
 
@@ -48,17 +48,17 @@ run =
       p :: ParserPrefs
       p = prefs showHelpOnEmpty
   in  do
-        Generate table alias sourceDirectory apiPrefix <- customExecParser p i
-        generate table alias sourceDirectory apiPrefix
+        Generate table alias sourceDirectory urlPrefix <- customExecParser p i
+        generate table alias sourceDirectory urlPrefix
 
 generate :: String -> String -> String -> String -> IO ()
-generate table alias sourceDirectory apiPrefix = do
+generate table alias sourceDirectory urlPrefix = do
   dbURL      <- getEnv "DATABASE_URL"
   connection <- Connection.acquire (B.pack dbURL)
   case connection of
     Right connection' -> do
       let runner = runTable connection'
-      runner table alias sourceDirectory apiPrefix
+      runner table alias sourceDirectory urlPrefix
       Connection.release connection'
     Left _ -> putStrLn "Couldn't establish connection to DB"
 
@@ -69,7 +69,7 @@ generateCommand :: Mod CommandFields Command
 generateCommand = command "generate" $ info
   (   Generate
   <$> strArgument (metavar "table" <> help "the name of the table")
-  <*> strOption (long "alias" <> help "The elm type alias; e.g. an `animals` table the type alias might be Animal")
+  <*> strOption (long "alias" <> help "The elm type alias; e.g. for a `directors` table the type alias might be Director")
   <*> strOption
         (  long "output"
         <> help "The root directory to output the elm code"
@@ -77,7 +77,7 @@ generateCommand = command "generate" $ info
         <> showDefault
         )
   <*> strOption
-        (  long "api-prefix"
+        (  long "url-prefix"
         <> help "URL to prefix your postgrest endpoints with. e.g. /api"
         <> value "/"
         <> showDefault
@@ -94,7 +94,7 @@ generators =
 
 runTable
   :: Connection.Connection -> String -> String -> String -> String -> IO ()
-runTable conn tableName alias sourceDirectory apiPrefix = do
+runTable conn tableName alias sourceDirectory urlPrefix = do
   table' <- Session.run (tableSession tableName) conn
 
   case table' of
@@ -103,7 +103,7 @@ runTable conn tableName alias sourceDirectory apiPrefix = do
                                , specifiedModuleNamespace = Nothing
                                , C.table                  = table''
                                , C.sourceDirectory        = sourceDirectory
-                               , C.apiPrefix              = apiPrefix
+                               , C.urlPrefix              = urlPrefix
                                }
       in  mapM_ (runGenerator config) generators
 

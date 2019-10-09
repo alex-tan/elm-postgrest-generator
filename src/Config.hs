@@ -32,7 +32,7 @@ data TableConfig = TableConfig
     , specifiedModuleNamespace :: Maybe String
     , table :: T.Table
     , sourceDirectory :: String
-    , apiPrefix :: String
+    , urlPrefix :: String
     } deriving (Show)
 
 tableName = T.name . table
